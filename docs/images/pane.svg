@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="560" viewBox="0 0 620 560" role="img" aria-label="session-hub pane: worktree, branch and remote, pull requests, processes, URLs and test accounts of the current session">
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; fill: #cdd6f4; white-space: pre; }
+    .dim { fill: #7f849c; }
+    .ok { fill: #a6e3a1; }
+    .warn { fill: #f9e2af; }
+    .head { fill: #fab387; font-weight: 700; }
+    .branch { fill: #cba6f7; font-weight: 700; }
+    .link { fill: #89b4fa; text-decoration: underline; }
+    .user { fill: #94e2d5; }
+    .title { fill: #9399b2; font-size: 12px; }
+  </style>
+  <rect width="620" height="560" rx="10" fill="#1e1e2e"/>
+  <rect x="0.5" y="0.5" width="619" height="559" rx="10" fill="none" stroke="#45475a"/>
+  <text x="20" y="26" class="title">Session hub</text>
+
+  <text x="20" y="58"><tspan class="head">Worktree / branch / remote</tspan><tspan class="dim"> (1)</tspan></text>
+  <text x="20" y="78" class="dim">  local session</text>
+  <text x="20" y="98"><tspan class="ok">▶ </tspan><tspan class="branch">feat/checkout-total</tspan></text>
+  <text x="20" y="118">  <tspan class="dim">→ origin/feat/checkout-total</tspan><tspan class="warn"> ↑2</tspan></text>
+  <text x="20" y="138">  <tspan class="link">~/src/my-app/.claude/worktrees/checkout-total</tspan></text>
+
+  <text x="20" y="174"><tspan class="head">Pull requests</tspan><tspan class="dim"> (1)</tspan></text>
+  <text x="20" y="194"><tspan class="ok" font-weight="700">[OPEN]</tspan> <tspan class="link">acme/my-app#128</tspan><tspan class="head" font-weight="400"> ← this branch</tspan></text>
+  <text x="20" y="214">  Fix the checkout total for discounted items</text>
+  <text x="20" y="234">  <tspan class="ok">✓4</tspan> <tspan class="dim">✗0</tspan> <tspan class="warn">…1</tspan> <tspan class="dim">review required</tspan></text>
+
+  <text x="20" y="270"><tspan class="head">Processes</tspan><tspan class="dim"> (1)</tspan></text>
+  <text x="20" y="290"><tspan class="ok">● </tspan>$ docker compose -f compose.dev.yml up -d</text>
+  <text x="20" y="310" class="dim">  started</text>
+  <text x="20" y="330">  <tspan class="ok">● </tspan><tspan class="link">https://app.localhost</tspan></text>
+
+  <text x="20" y="366"><tspan class="head">URLs</tspan><tspan class="dim"> (1)</tspan></text>
+  <text x="20" y="386"><tspan class="ok">● </tspan><tspan class="link">http://localhost:8025</tspan></text>
+
+  <text x="20" y="422"><tspan class="head">Accounts</tspan><tspan class="dim"> (6)</tspan></text>
+  <text x="20" y="442">▸ prod <tspan class="dim">(2)</tspan></text>
+  <text x="20" y="462">▸ dev <tspan class="dim">(3)</tspan></text>
+  <text x="20" y="482" class="dim">  from this session:</text>
+  <text x="20" y="502">  <tspan class="user">customer1@example.com</tspan><tspan class="dim"> (no password)</tspan></text>
+  <text x="20" y="530"><tspan class="dim">[ </tspan>Refresh<tspan class="dim"> ]</tspan><tspan class="dim"> 14:05:31</tspan></text>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "session-hub",
+  "description": "session-hub: a Claude Code mod with what the current session did, and CI, deploy and health of your projects",
+  "owner": { "name": "Marek Kawa" },
+  "plugins": [{ "name": "session-hub", "source": "./" }]
+}

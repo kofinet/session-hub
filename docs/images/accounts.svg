@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="430" viewBox="0 0 620 430" role="img" aria-label="session-hub pane, Accounts section: the staging environment unfolded shows its whole test data document with accounts, a test card and a bank account; production and the local stack are folded; below them an account the session gave">
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; fill: #cdd6f4; white-space: pre; }
+    .dim { fill: #7f849c; }
+    .head { fill: #fab387; font-weight: 700; }
+    .bold { font-weight: 700; }
+    .link { fill: #89b4fa; text-decoration: underline; }
+    .user { fill: #94e2d5; }
+    .pass { fill: #f9e2af; }
+    .title { fill: #9399b2; font-size: 12px; }
+  </style>
+  <rect width="620" height="430" rx="10" fill="#1e1e2e"/>
+  <rect x="0.5" y="0.5" width="619" height="429" rx="10" fill="none" stroke="#45475a"/>
+  <text x="20" y="26" class="title">Session hub</text>
+
+  <text x="20" y="58"><tspan class="head">Accounts</tspan><tspan class="dim"> (6)</tspan></text>
+  <text x="20" y="80">▸ prod <tspan class="dim">(2)</tspan></text>
+  <text x="20" y="102">▾ staging <tspan class="dim">(2)</tspan></text>
+  <text x="20" y="122">    <tspan class="link">~/src/my-app/docs/test_data_staging.md</tspan></text>
+  <text x="20" y="146" class="bold">    Test data: staging</text>
+  <text x="20" y="170" class="bold">    Role          Login                   Password</text>
+  <text x="20" y="190">    Tenant admin  <tspan class="user">qa@my-app.example</tspan>       <tspan class="dim">(1Password: My-app staging)</tspan></text>
+  <text x="20" y="210">    Customer      <tspan class="user">customer@example.com</tspan>    <tspan class="dim">(1Password: My-app staging)</tspan></text>
+  <text x="20" y="234" class="bold">    Stripe test cards</text>
+  <text x="20" y="254">    OK:          4242 4242 4242 4242</text>
+  <text x="20" y="274">    3-D Secure:  4000 0025 0000 3155</text>
+  <text x="20" y="294" class="bold">    Bank account (test)</text>
+  <text x="20" y="314">    PL00 1234 5678 0000 0000 0000 0000</text>
+  <text x="20" y="338">▸ dev <tspan class="dim">(3)</tspan></text>
+  <text x="20" y="362" class="dim">  from this session:</text>
+  <text x="20" y="382">  <tspan class="user">dev@my-app.local</tspan><tspan class="dim"> / </tspan><tspan class="pass">devpass1</tspan></text>
+  <text x="20" y="402" class="dim">    seeded by this session for the checkout test</text>
+</svg>
