@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { extract, fileHref, findAccounts, findLoginEmails, listeningPorts, localUrls, parseWorktrees, summarizeChecks, worktreeAddPaths } from '../hooks/extract'
+import { extract, fileHref, findAccounts, findLoginEmails, listeningPorts, localUrls, parseWorktrees, summarizeChecks, taskNotifications, worktreeAddPaths } from '../hooks/extract'
 import type { Msg } from '../hooks/extract'
 
 // What each detector of the session's transcript finds and what it leaves out.
@@ -374,4 +374,24 @@ test('a start, a PR change or a seed after a heredoc, in a chain or behind varia
   ])
   expect(found.prs.map(p => p.number)).toEqual([9])
   expect(found.accounts).toEqual([{ user: 'admin', password: 'admin123' }])
+})
+
+test('background tasks end by the notifications the session got outside its messages', async () => {
+  const found = extract(
+    did(
+      bash('until grep -q done out.log; do sleep 1; done', 'Command running in background with ID: bp1cwp1ll.', true),
+      bash('dotnet test', 'Command running in background with ID: b9sp0slv7.', true),
+      bash('npm run dev', 'Command running in background with ID: b29d0bkek.', true),
+    ),
+    [],
+    { bp1cwp1ll: 'completed', b9sp0slv7: 'failed' },
+  )
+  expect(found.processes.map(p => [p.id, p.status])).toEqual([
+    ['bp1cwp1ll', 'completed'],
+    ['b9sp0slv7', 'failed'],
+    ['b29d0bkek', 'running'],
+  ])
+  expect(taskNotifications('<task-notification>\n<task-id>bp1cwp1ll</task-id>\n<status>completed</status>\n</task-notification>')).toEqual([
+    { id: 'bp1cwp1ll', status: 'completed' },
+  ])
 })

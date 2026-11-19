@@ -115,39 +115,31 @@ const PROJECT_STATUS = {
 
 const SESSION_ACCOUNTS = [{ user: 'admin@shop.local' }, { user: 'dev@shop.local', note: 'seeded by this session' }]
 
-test("one Accounts section: a running instance's accounts doc folded under its name, then the session's own, without the instance's again", async ($, on) => {
+test("one Accounts section: each environment's row opens its tab, then the session's own accounts, without the environment's again", async ($, on) => {
+  const opened: string[] = []
   on('state.get', ($, e, next) => {
     if (e.key === 'snapshot')
       return { value: { value: { shape: 'snapshot-4', value: { ...SNAPSHOT, accounts: SESSION_ACCOUNTS } }, version: 1 } } as never
     if (e.key === 'project') return { value: { value: { shape: 'project-4', value: PROJECT_STATUS }, version: 1 } } as never
     return next(e)
   })
+  on('ui.open', ($, e) => {
+    opened.push(`${e.id} ${e.title ?? ''}`)
+    return { value: { id: e.id, isPlaced: true } as never }
+  })
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({
-      plugin: 'session-hub',
-      surface,
-      component: 'Pane',
-      requestId: 'session-hub',
-      props: { title: 'Session hub', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 60 }, view: {} },
-    })
+    const ui = await mountPane($, surface)
     expect(await ui.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '  dev@shop.local (no password)' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '  admin@shop.local (no password)' })).toBeUndefined()
     expect(await ui.find({ key: 'accounts:dev' })).toBeDefined()
     expect(await ui.find({ key: 'accounts:staging' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: '    Tenant admin  admin@shop.local  admin app' })).toBeUndefined()
-
+    expect(await ui.find({ type: 'Text', text: 'Tenant admin' })).toBeUndefined()
     await ui.press({ key: 'accounts:dev' })
-    expect(await ui.find({ type: 'Text', text: '    Dev' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '    Role          Login             Where' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '    Tenant admin  admin@shop.local  admin app' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '    Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
-
-    await ui.press({ key: 'accounts:dev' })
-    expect(await ui.find({ type: 'Text', text: '    Stripe OK: 4242 4242 4242 4242' })).toBeUndefined()
     await ui.unmount()
   }
+  expect(opened).toEqual(['session-hub-env-dev 🧪 dev test data', 'session-hub-env-dev 🧪 dev test data'])
 })
 
 test('no Accounts section when neither the session nor a running instance has an account', async ($, on) => {
@@ -184,7 +176,33 @@ const mountPane = ($: Parameters<TestBody>[0], surface: 'terminal' | 'desktop') 
     props: { title: 'Session hub', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 60 }, view: {} },
   })
 
-test("an instance whose accounts doc is missing still shows its group, saying the doc is not there", async ($, on) => {
+/** An environment's tab, by its pane id. */
+const mountTab = ($: Parameters<TestBody>[0], surface: 'terminal' | 'desktop', id: string) =>
+  $.ui.mount({
+    plugin: 'session-hub',
+    surface,
+    component: 'Pane',
+    requestId: id,
+    props: { title: id, isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 60 }, view: {} },
+  })
+
+const SECTIONED_DOC = [
+  '# Test data: dev',
+  'Seeded by npm run db:seed.',
+  '',
+  '## URLs',
+  'https://shop.localhost',
+  '',
+  '## Accounts',
+  '| Role | Login | Password |',
+  '|---|---|---|',
+  '| Admin | admin@shop.local | admin123 |',
+  '',
+  '## Payments',
+  'Stripe OK: 4242 4242 4242 4242',
+].join('\n')
+
+test("an environment whose document is missing keeps its row, and its tab says the document is not there", async ($, on) => {
   const project = withInstance({ kind: 'missing', doc: 'C:/repo/docs/LOCAL_ACCOUNT.md' })
   on('state.get', ($, e, next) => {
     if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: SNAPSHOT }, version: 1 } } as never
@@ -192,14 +210,17 @@ test("an instance whose accounts doc is missing still shows its group, saying th
     return next(e)
   })
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await mountPane($, surface)
-    expect(await ui.find({ key: 'accounts:dev' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '(no document)' })).toBeDefined()
-    await ui.press({ key: 'accounts:dev' })
-    if (surface === 'terminal') expect(await ui.find({ type: 'Link', text: 'C:/repo/docs/LOCAL_ACCOUNT.md' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '    no such document, or it cannot be read' })).toBeDefined()
-    await ui.press({ key: 'accounts:dev' })
-    await ui.unmount()
+    const hub = await mountPane($, surface)
+    expect(await hub.find({ key: 'accounts:dev' })).toBeDefined()
+    expect(await hub.find({ type: 'Text', text: '(no document)' })).toBeDefined()
+    await hub.unmount()
+    const tab = await mountTab($, surface, 'session-hub-env-dev')
+    if (surface === 'terminal') expect(await tab.find({ type: 'Link', text: 'C:/repo/docs/LOCAL_ACCOUNT.md' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'no such document, or it cannot be read' })).toBeDefined()
+    await tab.unmount()
+    const gone = await mountTab($, surface, 'session-hub-env-staging')
+    expect(await gone.find({ type: 'Text', text: 'the environment is off: no test data now' })).toBeDefined()
+    await gone.unmount()
   }
 })
 
@@ -264,18 +285,45 @@ test('a login two running instances list from the same doc is counted once', asy
   }
 })
 
-test("an instance's accounts unfold and fold again on two quick presses", async ($, on) => {
+test("an environment tab's section unfolds and folds again on two quick presses", async ($, on) => {
+  const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/test_data_local.md', text: SECTIONED_DOC, list: [] })
   on('state.get', ($, e, next) => {
-    if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: SNAPSHOT }, version: 1 } } as never
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: PROJECT_STATUS }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
     return next(e)
   })
-  const ui = await mountPane($, 'terminal')
-  await Promise.all([ui.press({ key: 'accounts:dev' }), ui.press({ key: 'accounts:dev' })])
-  expect(await ui.find({ type: 'Text', text: '    Stripe OK: 4242 4242 4242 4242' })).toBeUndefined()
-  await ui.press({ key: 'accounts:dev' })
-  expect(await ui.find({ type: 'Text', text: '    Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
-  await ui.unmount()
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  await Promise.all([tab.press({ key: 'section:Payments' }), tab.press({ key: 'section:Payments' })])
+  expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeUndefined()
+  await tab.press({ key: 'section:Payments' })
+  expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
+  await tab.unmount()
+})
+
+test("an environment's tab: the document in its sections, accounts unfolded and the others folded until pressed", async ($, on) => {
+  const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/test_data_local.md', text: SECTIONED_DOC, list: [] })
+  on('state.get', ($, e, next) => {
+    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    return next(e)
+  })
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const tab = await mountTab($, surface, 'session-hub-env-dev')
+    if (surface === 'terminal') expect(await tab.find({ type: 'Link', text: 'C:/repo/docs/test_data_local.md' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'Test data: dev' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'Seeded by npm run db:seed.' })).toBeDefined()
+    expect(await tab.find({ key: 'section:URLs' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '  Admin  admin@shop.local  admin123' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '  https://shop.localhost' })).toBeUndefined()
+    expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeUndefined()
+
+    await tab.press({ key: 'section:Payments' })
+    await tab.press({ key: 'section:Accounts' })
+    expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '  Admin  admin@shop.local  admin123' })).toBeUndefined()
+
+    await tab.press({ key: 'section:Payments' })
+    await tab.press({ key: 'section:Accounts' })
+    await tab.unmount()
+  }
 })
 
 test("the session's own account stays in view after the session repeats the doc's long table", async ($, on) => {
@@ -330,7 +378,7 @@ const shopSession = (
     ['git remote get-url origin', origin],
     ['docker ps --format {{.Names}}\t{{.State}}\t{{.Status}}', 'shop-dev-web\trunning\tUp 1 minute'],
   ])
-  const shown = { status: undefined as string | undefined }
+  const shown = { status: undefined as string | undefined, opened: [] as string[] }
   mock.env(on, { SESSION_HUB_SETTINGS: HUB_SETTINGS_FILE })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: undefined as never }))
@@ -348,7 +396,10 @@ const shopSession = (
     const stdout = said.get(e.argv.join(' '))
     return { value: (stdout === undefined ? { exitCode: 1, stdout: '', stderr: '' } : { exitCode: 0, stdout, stderr: '' }) as never }
   })
-  on('ui.open', ($, e) => ({ value: { id: e.id, isPlaced: true } as never }))
+  on('ui.open', ($, e) => {
+    if (e.id !== 'session-hub') shown.opened.push(`${e.id} ${e.title ?? ''}`)
+    return { value: { id: e.id, isPlaced: true } as never }
+  })
   on('ui.status', ($, e) => {
     shown.status = e.text
     return { value: undefined }
@@ -379,54 +430,83 @@ test("an instance's accounts doc is read from the worktree the session works in"
   await ui.unmount()
 })
 
-test("an environment's accounts doc (production, staging) is listed under its name, with no local instance running", async ($, on) => {
+test("production and staging get their tabs by themselves, the one with a document opened, and show it whole", async ($, on) => {
   const prod = { type: 'http', label: 'prod', urls: ['https://shop.example/'], accounts: 'docs/test_data_prod.md' }
   const staging = { type: 'http', label: 'staging', urls: ['https://staging.shop.example/'], accounts: 'docs/test_data_staging.md' }
-  shopSession(on, MAIN_CHECKOUT, { [`${MAIN_CHECKOUT}/docs/test_data_prod.md`]: ACCOUNTS_DOC }, [prod, staging])
+  const shown = shopSession(on, MAIN_CHECKOUT, { [`${MAIN_CHECKOUT}/docs/test_data_prod.md`]: ACCOUNTS_DOC }, [prod, staging])
   on('http.fetch', () => ({ value: { ok: true, status: 200 } as never }))
   const clock = mock.clock(on)
   await $.session.start({ cwd: MAIN_CHECKOUT, surface: 'terminal', isInteractive: true })
 
   await clock.advance(1_000)
+  await clock.advance(60_000)
 
-  const ui = await mountPane($, 'terminal')
-  expect(await ui.find({ key: 'accounts:prod' })).toBeDefined()
-  expect(await ui.find({ key: 'accounts:staging' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '(2)' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '(no document)' })).toBeDefined()
-  await ui.press({ key: 'accounts:prod' })
-  expect(await ui.find({ type: 'Link', text: `${MAIN_CHECKOUT}/docs/test_data_prod.md` })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '    Admin    admin    admin123' })).toBeDefined()
-  await ui.unmount()
+  expect(shown.opened).toEqual(['session-hub-env-prod 🧪 prod test data'])
+  const hub = await mountPane($, 'terminal')
+  expect(await hub.find({ key: 'accounts:prod' })).toBeDefined()
+  expect(await hub.find({ key: 'accounts:staging' })).toBeDefined()
+  expect(await hub.find({ type: 'Text', text: '(no document)' })).toBeDefined()
+  await hub.unmount()
+  const tab = await mountTab($, 'terminal', 'session-hub-env-prod')
+  expect(await tab.find({ type: 'Link', text: `${MAIN_CHECKOUT}/docs/test_data_prod.md` })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'Admin    admin    admin123' })).toBeDefined()
+  await tab.unmount()
 })
 
-test("a long accounts doc is cut in the pane, saying how many lines the document still has", async ($, on) => {
+test("an environment's tab shows its document whole, however long", async ($, on) => {
   const text = Array.from({ length: 230 }, (_, i) => `line ${i + 1}`).join('\n')
   const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/accounts.md', text, list: [] })
   on('state.get', ($, e, next) => {
-    if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: SNAPSHOT }, version: 1 } } as never
     if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
     return next(e)
   })
-  const ui = await mountPane($, 'terminal')
-  await ui.press({ key: 'accounts:dev' })
-  expect(await ui.find({ type: 'Text', text: '    line 200' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '    line 201' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '    … 30 more lines in the document' })).toBeDefined()
-  await ui.unmount()
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await tab.find({ type: 'Text', text: 'line 230' })).toBeDefined()
+  await tab.unmount()
 })
 
-test("an empty accounts doc says so when unfolded", async ($, on) => {
+test("an empty document says so in its tab", async ($, on) => {
   const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/accounts.md', text: '\n\n', list: [] })
   on('state.get', ($, e, next) => {
-    if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: SNAPSHOT }, version: 1 } } as never
     if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
     return next(e)
   })
-  const ui = await mountPane($, 'terminal')
-  await ui.press({ key: 'accounts:dev' })
-  expect(await ui.find({ type: 'Text', text: '    the document is empty' })).toBeDefined()
-  await ui.unmount()
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await tab.find({ type: 'Text', text: 'the document has nothing to show' })).toBeDefined()
+  await tab.unmount()
+})
+
+test('a background task ends when its notification arrives during a turn, outside the messages', async ($, on) => {
+  on('session.messages', () => ({
+    value: [
+      {
+        role: 'assistant',
+        text: '',
+        toolUses: [{ tool: 'Bash', input: { command: 'dotnet test', run_in_background: true }, text: 'Command running in background with ID: bt1.' }],
+      },
+    ] as never,
+  }))
+  on('session.cwd', () => ({ value: 'C:/repo' }))
+  on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: '' } as never }))
+  on('ui.open', ($, e) => ({ value: { id: e.id, isPlaced: true } as never }))
+  on('ui.status', () => ({ value: undefined }))
+  on('prompt.submit', ($, e) => ({ text: e.text }) as never)
+  const clock = mock.clock(on)
+  await $.command.run({ command: 'hub', args: '', origin: { kind: 'user' } } as never)
+  const before = await mountPane($, 'terminal')
+  expect(await before.find({ type: 'Text', text: '  running · bt1 · background' })).toBeDefined()
+  await before.unmount()
+
+  await $.prompt.submit({
+    text: '<task-notification>\n<task-id>bt1</task-id>\n<status>completed</status>\n</task-notification>',
+    origin: { kind: 'task-notification' },
+    wait: false,
+  } as never)
+  await clock.advance(100)
+
+  const after = await mountPane($, 'terminal')
+  expect(await after.find({ type: 'Text', text: '  finished · bt1 · background' })).toBeDefined()
+  await after.unmount()
 })
 
 test('a repository with no settings is told once that /session-hub:modinstal configures it', async ($, on) => {

@@ -27,7 +27,7 @@ import { DEFAULT_SETTINGS, findProject, parseProject, parseSettings, withProject
 import type { Check, Project, Settings } from './settings'
 import { DEFAULT_LANGUAGE, parseLanguage, textsFor } from './i18n'
 import type { Texts } from './i18n'
-import { PROJECT_SHAPE, showStatus } from './status'
+import { openEnvironmentTabs, PROJECT_SHAPE, showStatus } from './status'
 
 type On = Parameters<Register>[0]
 
@@ -273,6 +273,7 @@ function refreshProject($: EngineInterface): Promise<void> {
       previous = status
       await update($, projectStatus, () => status)
       await showStatus($)
+      await openEnvironmentTabs($)
       for (const n of news) {
         $.ui.toast(n.text)
         if (n.sound !== undefined) void playSound($, n.sound, settings)

@@ -41,13 +41,14 @@ Read just enough to decide; do not run builds, tests or containers.
 - **Accounts documents** (`accounts` on an `http` or `docker` check, optional): the repository's
   document of that environment's test accounts and test data (seeded admins, operators, test users,
   how to sign in, test cards), as a path relative to the repository root, one per environment:
-  `docs/test_data_prod.md`, `docs/test_data_staging.md`, `docs/test_data_local.md`. The pane shows
-  each in a folded group under the check's label. Look for existing ones first: docs or READMEs
+  `docs/test_data_prod.md`, `docs/test_data_staging.md`, `docs/test_data_local.md`. Each environment
+  gets its own tab showing its document, one folded section per `## ` heading (`Accounts` unfolded). Look for existing ones first: docs or READMEs
   about test accounts, credentials or a cheat sheet (`test_data_*`, `*CREDENTIALS*`, `*ACCOUNTS*`,
   a "test accounts" section); keep the names the repository already uses. One document can serve
   several local stacks. When there is none, propose creating one per environment with that name:
-  a Markdown table `| Role | Login | Password | Where |`, one row per account, filled from the seed
-  scripts, compose environment, test helpers and this session.
+  the sections `## Accounts` (a table `| Role | Login | Password | Where |`, one row per account),
+  `## URLs`, `## Payments` (test cards, test bank accounts) and `## Notes`, filled from the seed
+  scripts, compose environment, test helpers and this session; a section with nothing in it left out.
   - Local: only the obviously fake logins those files already hold (`admin@example.local`,
     `admin / admin123`).
   - Production and staging: logins only; the Password cell says where the password is kept

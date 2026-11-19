@@ -25,6 +25,7 @@ export type Texts = {
     noProcesses: string
     status: Record<ProcessStatus, string>
     notListening: string
+    background: string
     urls: string
     noUrls: string
     accounts: string
@@ -36,6 +37,12 @@ export type Texts = {
     fromSession: string
     artifacts: string
     refresh: string
+  }
+  env: {
+    tabTitle: (label: string) => string
+    open: string
+    notRunning: string
+    empty: string
   }
   band: { handsOff: string; local: string }
   statusLine: { processes: (n: number) => string; prs: (n: number) => string; accounts: (n: number) => string }
@@ -73,6 +80,7 @@ const EN: Texts = {
     noProcesses: 'the session started nothing',
     status: { running: 'running', started: 'started', completed: 'finished', failed: 'failed', killed: 'stopped' },
     notListening: 'not listening',
+    background: 'background',
     urls: 'URLs',
     noUrls: 'none besides the processes',
     accounts: 'Accounts',
@@ -84,6 +92,12 @@ const EN: Texts = {
     fromSession: 'from this session:',
     artifacts: 'Artifacts',
     refresh: 'Refresh',
+  },
+  env: {
+    tabTitle: label => `🧪 ${label} test data`,
+    open: 'open its tab',
+    notRunning: 'the environment is off: no test data now',
+    empty: 'the document has nothing to show',
   },
   band: { handsOff: 'hands off', local: 'local' },
   statusLine: { processes: n => `${n} proc`, prs: n => `${n} PR`, accounts: n => `${n} ${n === 1 ? 'account' : 'accounts'}` },
@@ -131,6 +145,7 @@ const PL: Texts = {
     noProcesses: 'sesja nic nie uruchomiła',
     status: { running: 'działa', started: 'uruchomiony', completed: 'zakończony', failed: 'błąd', killed: 'zatrzymany' },
     notListening: 'nie słucha',
+    background: 'w tle',
     urls: 'Adresy URL',
     noUrls: 'poza procesami — brak',
     accounts: 'Konta',
@@ -142,6 +157,12 @@ const PL: Texts = {
     fromSession: 'z tej sesji:',
     artifacts: 'Artefakty',
     refresh: 'Odśwież',
+  },
+  env: {
+    tabTitle: label => `🧪 Dane testowe ${label}`,
+    open: 'otwórz zakładkę',
+    notRunning: 'środowisko nie działa: teraz brak danych testowych',
+    empty: 'dokument nie ma nic do pokazania',
   },
   band: { handsOff: 'nie ruszać', local: 'lokalne instancje' },
   statusLine: { processes: n => `${n} proc`, prs: n => `${n} PR`, accounts: n => `${n} ${plural(n, 'konto', 'konta', 'kont')}` },

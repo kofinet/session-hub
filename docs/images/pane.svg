@@ -34,8 +34,8 @@
   <text x="20" y="386"><tspan class="ok">● </tspan><tspan class="link">http://localhost:8025</tspan></text>
 
   <text x="20" y="422"><tspan class="head">Accounts</tspan><tspan class="dim"> (6)</tspan></text>
-  <text x="20" y="442">▸ prod <tspan class="dim">(2)</tspan></text>
-  <text x="20" y="462">▸ dev <tspan class="dim">(3)</tspan></text>
+  <text x="20" y="442">→ prod <tspan class="dim">(2) · open its tab</tspan></text>
+  <text x="20" y="462">→ dev <tspan class="dim">(3) · open its tab</tspan></text>
   <text x="20" y="482" class="dim">  from this session:</text>
   <text x="20" y="502">  <tspan class="user">customer1@example.com</tspan><tspan class="dim"> (no password)</tspan></text>
   <text x="20" y="530"><tspan class="dim">[ </tspan>Refresh<tspan class="dim"> ]</tspan><tspan class="dim"> 14:05:31</tspan></text>

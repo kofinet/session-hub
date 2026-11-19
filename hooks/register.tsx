@@ -2,20 +2,23 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Account, Process, PullRequest, Snapshot, Url, Worktree } from '../types'
-import { extract, fileHref, listeningPorts, localUrls, parseWorktrees, pullRepo, summarizeChecks } from './extract'
+import { extract, fileHref, listeningPorts, localUrls, parseWorktrees, pullRepo, summarizeChecks, taskNotifications } from './extract'
 import type { CheckRun, FoundPr, FoundProcess, FoundUrl, Msg } from './extract'
-import { docLines } from './doc'
+import { accountsSection, docSections } from './doc'
 import { afterTurn, registerProject, startProject } from './project'
 import { run } from './run'
 import { DEFAULT_LANGUAGE, textsFor } from './i18n'
-import { isLive, paneAccounts, PROJECT_SHAPE, showStatus, SNAPSHOT_SHAPE } from './status'
+import { ENV_PANE_PREFIX, envPane, isLive, paneAccounts, PROJECT_SHAPE, showStatus, SNAPSHOT_SHAPE } from './status'
 
 const PANE = 'session-hub'
 const snapshot = atom({ plugin: 'session-hub', key: 'snapshot' } as const, null, { shape: SNAPSHOT_SHAPE })
 const isAutoOpened = atom({ plugin: 'session-hub', key: 'isAutoOpened' } as const, false)
 // project.tsx writes it; the pane reads its instances' accounts.
 const projectStatus = atom({ plugin: 'session-hub', key: 'project' } as const, null, { shape: PROJECT_SHAPE })
-const openAccounts = atom({ plugin: 'session-hub', key: 'openAccounts' } as const, [] as string[])
+/** background tasks' ends the session was notified of outside its messages: task id → status */
+const taskEnds = atom({ plugin: 'session-hub', key: 'taskEnds' } as const, {} as Record<string, string>)
+/** the sections of the environments' tabs the person folded or unfolded: `<label>\u0000<title>` → open */
+const openSections = atom({ plugin: 'session-hub', key: 'openSections' } as const, {} as Record<string, boolean>)
 const language = atom({ plugin: 'session-hub', key: 'language' } as const, DEFAULT_LANGUAGE)
 
 const DEFAULT_BRANCHES = new Set(['main', 'master', 'develop', 'trunk'])
@@ -142,7 +145,7 @@ const refresh = ($: EngineInterface): Promise<void> => {
     try {
       const cwd = await $.session.cwd()
       const { main, agents } = await transcripts($)
-      const found = extract(main, agents)
+      const found = extract(main, agents, await read($, taskEnds))
 
       const processUrls = await Promise.all(found.processes.map(p => withLaterUrls($, p)))
       const hasPorts = processUrls.some(u => u.length > 0) || found.urls.length > 0
@@ -224,6 +227,18 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // A background task's end, delivered into a running turn, reaches the session as a prompt, not a message.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.origin.kind === 'task-notification') {
+      const ends = taskNotifications(e.text)
+      if (ends.length > 0) {
+        await update($, taskEnds, known => ({ ...known, ...Object.fromEntries(ends.map(n => [n.id, n.status])) }))
+        $.clock.after(50, () => void refresh($))
+      }
+    }
+    return next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) {
       $.clock.after(50, () => void refresh($))
@@ -238,7 +253,9 @@ export const register: Register = on => {
     return { text: 'Session hub opened.' }
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane' }, async ($, e, next) => {
+    if (e.requestId.startsWith(ENV_PANE_PREFIX)) return renderEnvironment($, e)
+    if (e.requestId !== PANE) return next(e)
     const { Box, Text, Link, Button } = $.ui.resolve(e)
     const snap = await read($, snapshot)
     const t = textsFor(await read($, language)).pane
@@ -281,26 +298,10 @@ export const register: Register = on => {
         )}
       </Box>
     )
-    /** An environment's accounts doc, whole: headings and table headers bold, tables aligned. */
-    const docView = (text: string) => {
-      const { lines, hidden } = docLines(text)
-      return (
-        <Box flexDirection="column">
-          {lines.length === 0 && empty(`  ${t.documentEmpty}`)}
-          {lines.map(l => (
-            <Text bold={l.isBold}>
-              {'    '}
-              {l.text}
-            </Text>
-          ))}
-          {hidden > 0 && empty(`  ${t.moreLines(hidden)}`)}
-        </Box>
-      )
-    }
     if (snap === null) return <Text dimColor>{t.collecting}</Text>
 
     const { instances, own: sessionAccounts, count: accountCount } = paneAccounts(await read($, projectStatus), snap.accounts)
-    const unfolded = await read($, openAccounts)
+    const tabs = textsFor(await read($, language)).env
 
     return (
       <Box flexDirection="column" gap={1}>
@@ -396,7 +397,7 @@ export const register: Register = on => {
                   {'  '}
                   {t.status[p.status]}
                   {p.id !== undefined && ` · ${p.id}`}
-                  {p.isBackground ? ' · w tle' : ''}
+                  {p.isBackground ? ` · ${t.background}` : ''}
                 </Text>
                 {!isDone && p.urls.map(u => urlLine(u, '  '))}
               </Box>
@@ -413,32 +414,15 @@ export const register: Register = on => {
         {instances.length + sessionAccounts.length > 0 && (
           <Box flexDirection="column">
             {header(t.accounts, accountCount)}
-            {instances.map(i => {
-              const isOpen = unfolded.includes(i.label)
-              return (
-                <Box flexDirection="column">
-                  <Button
-                    key={`accounts:${i.label}`}
-                    plain
-                    onPress={() =>
-                      update($, openAccounts, list => (list.includes(i.label) ? list.filter(l => l !== i.label) : [...list, i.label]))
-                    }
-                  >
-                    {isOpen ? '▾ ' : '▸ '}
-                    {i.label}{' '}
-                    <Text dimColor>{i.accounts.kind === 'listed' ? `(${i.accounts.list.length})` : `(${t.noDocument})`}</Text>
-                  </Button>
-                  {isOpen && (
-                    <Text wrap="truncate-start">
-                      {'    '}
-                      <Link href={fileHref(i.accounts.doc)}>{i.accounts.doc}</Link>
-                    </Text>
-                  )}
-                  {isOpen && i.accounts.kind === 'missing' && empty(`  ${t.documentMissing}`)}
-                  {isOpen && i.accounts.kind === 'listed' && docView(i.accounts.text)}
-                </Box>
-              )
-            })}
+            {instances.map(i => (
+              <Button key={`accounts:${i.label}`} plain onPress={() => $.ui.open({ id: envPane(i.label), title: tabs.tabTitle(i.label) })}>
+                {'→ '}
+                {i.label}{' '}
+                <Text dimColor>
+                  {i.accounts.kind === 'listed' ? `(${i.accounts.list.length})` : `(${t.noDocument})`} · {tabs.open}
+                </Text>
+              </Button>
+            ))}
             {instances.length > 0 && sessionAccounts.length > 0 && <Text dimColor>  {t.fromSession}</Text>}
             {sessionAccounts.map(a => accountLine(a, '  '))}
           </Box>
@@ -464,4 +448,65 @@ export const register: Register = on => {
       </Box>
     )
   })
+}
+
+/**
+ * An environment's tab: its test data document in `## ` sections, each folded or unfolded by a press; the accounts
+ * section is unfolded until the person folds it, the others folded.
+ */
+async function renderEnvironment($: EngineInterface, e: Parameters<EngineInterface['ui']['resolve']>[0] & { requestId: string }) {
+  const { Box, Text, Link, Button } = $.ui.resolve(e)
+  const t = textsFor(await read($, language))
+  const status = await read($, projectStatus)
+  const check = status?.checks.find(c => envPane(c.label) === e.requestId && c.accounts !== undefined)
+  const label = check?.label ?? ''
+  const accounts = check?.accounts
+  if (accounts === undefined) return <Text dimColor>{t.env.notRunning}</Text>
+  const link = (
+    <Text wrap="truncate-start">
+      <Link href={fileHref(accounts.doc)}>{accounts.doc}</Link>
+    </Text>
+  )
+  if (accounts.kind === 'missing') {
+    return (
+      <Box flexDirection="column">
+        {link}
+        <Text dimColor>{t.pane.documentMissing}</Text>
+      </Box>
+    )
+  }
+  const { head, sections } = docSections(accounts.text)
+  const toggled = await read($, openSections)
+  const unfolded = accountsSection(sections.map(s => s.title))
+  const line = (l: { text: string; isBold: boolean }, indent: string) => (
+    <Text bold={l.isBold}>
+      {indent}
+      {l.text}
+    </Text>
+  )
+  return (
+    <Box flexDirection="column">
+      {link}
+      {head.map(l => line(l, ''))}
+      {head.length === 0 && sections.length === 0 && <Text dimColor>{t.env.empty}</Text>}
+      {sections.map((section, i) => {
+        const key = `${label}\u0000${section.title}`
+        const isOpenByDefault = i === unfolded
+        const isOpen = toggled[key] ?? isOpenByDefault
+        // from the value at the press, not at the drawing: two quick presses fold back
+        const toggle = () => update($, openSections, m => ({ ...m, [key]: !(m[key] ?? isOpenByDefault) }))
+        return (
+          <Box flexDirection="column">
+            <Button key={`section:${section.title}`} plain onPress={toggle}>
+              <Text bold color="claude">
+                {isOpen ? '▾ ' : '▸ '}
+                {section.title}
+              </Text>
+            </Button>
+            {isOpen && section.lines.map(l => line(l, '  '))}
+          </Box>
+        )
+      })}
+    </Box>
+  )
 }

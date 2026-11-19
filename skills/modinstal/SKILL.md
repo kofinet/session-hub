@@ -52,9 +52,29 @@ Then the **test data documents**, one per environment the entry names (`prod`, `
 name (then reuse it). For each:
 
 - it exists: point the check's `accounts` at it;
-- it does not: propose it, filled from what step 2 found: a table
-  `| Role | Login | Password | Where |` plus any other test data the project uses (test cards, test bank
-  accounts, sign-in steps). Production and staging: logins only, the Password cell says where the
+- it does not: propose it, filled from what step 2 found, in these `## ` sections (each one is a
+  folded section in the environment's tab; `Accounts` is unfolded at first), leaving out a section with
+  nothing in it:
+
+  ```markdown
+  # Test data: <environment>
+  
+  ## Accounts
+  | Role | Login | Password | Where |
+  |---|---|---|---|
+  | Tenant admin | admin@shop.example | (1Password: Shop prod) | /admin |
+  
+  ## URLs
+  - App: https://shop.example/
+  
+  ## Payments
+  - Stripe test card OK: 4242 4242 4242 4242
+  
+  ## Notes
+  - How to sign in, what not to touch.
+  ```
+
+  Production and staging: logins only, the Password cell says where the
   password is kept (`(1Password: Shop prod)`), never the password itself. Local: only the obviously
   fake seeded logins the repository already holds. Never a value from `.env` or a secret store.
 

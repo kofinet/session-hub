@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { docLines } from '../hooks/doc'
+import { accountsSection, docLines, docSections } from '../hooks/doc'
 
 test('a document is shown line by line: headings bold, markdown marks gone, runs of blank lines as one', async () => {
   const doc = [
@@ -54,4 +54,52 @@ test('leading and trailing blank lines are not shown', async () => {
     { text: 'A', isBold: true },
     { text: 'text', isBold: false },
   ])
+})
+
+test('a document splits into its ## sections, the text before the first one kept as its head', async () => {
+  const doc = [
+    '# Test data: staging',
+    'Shared by the QA team.',
+    '',
+    '## Accounts',
+    '| Role | Login |',
+    '|---|---|',
+    '| Admin | qa@shop.example |',
+    '',
+    '## Payments',
+    '### Stripe',
+    '4242 4242 4242 4242',
+    '## Notes',
+  ].join('\n')
+  expect(docSections(doc)).toEqual({
+    head: [
+      { text: 'Test data: staging', isBold: true },
+      { text: 'Shared by the QA team.', isBold: false },
+    ],
+    sections: [
+      {
+        title: 'Accounts',
+        lines: [
+          { text: 'Role   Login', isBold: true },
+          { text: 'Admin  qa@shop.example', isBold: false },
+        ],
+      },
+      {
+        title: 'Payments',
+        lines: [
+          { text: 'Stripe', isBold: true },
+          { text: '4242 4242 4242 4242', isBold: false },
+        ],
+      },
+      { title: 'Notes', lines: [] },
+    ],
+  })
+})
+
+test('the accounts section is the one named accounts, logins or konta, else the first', async () => {
+  expect(accountsSection(['URLs', 'Konta testowe', 'Notes'])).toBe(1)
+  expect(accountsSection(['Test accounts', 'Payments'])).toBe(0)
+  expect(accountsSection(['URLs', 'Logins'])).toBe(1)
+  expect(accountsSection(['URLs', 'Payments'])).toBe(0)
+  expect(accountsSection([])).toBe(-1)
 })

@@ -595,7 +595,7 @@ const outputFile = (out: string): string | undefined => {
 }
 
 /** `<task-id>x</task-id> … <status>y</status>` pairs of task notifications, in order. */
-const taskNotifications = (text: string): { id: string; status: string }[] => {
+export const taskNotifications = (text: string): { id: string; status: string }[] => {
   const found: { id: string; status: string }[] = []
   let from = 0
   for (let i = text.indexOf('<task-id>', from); i >= 0; i = text.indexOf('<task-id>', from)) {
@@ -873,9 +873,10 @@ const artifactId = (url: string): string => url.slice(url.lastIndexOf('/') + 1, 
  * the PRs it made or changed, the worktrees it created or entered, and what it produced.
  *
  * `main` is the conversation; `agents` are the session's subagents' transcripts, read for
- * their actions only (their prose never reached the person).
+ * their actions only (their prose never reached the person); `ended` the background tasks' ends
+ * the session was notified of (task id → status).
  */
-export const extract = (main: readonly Msg[], agents: readonly Msg[] = []): Found => {
+export const extract = (main: readonly Msg[], agents: readonly Msg[] = [], ended: Readonly<Record<string, string>> = {}): Found => {
   const processes: FoundProcess[] = []
   const byTaskId = new Map<string, FoundProcess>()
   const urls = new Map<string, FoundUrl>()
@@ -1009,6 +1010,11 @@ export const extract = (main: readonly Msg[], agents: readonly Msg[] = []): Foun
 
   for (const msg of main) read(msg, false)
   for (const msg of agents) read(msg, true)
+  // notifications delivered while a turn ran reach the session outside its messages
+  for (const [id, status] of Object.entries(ended)) {
+    const p = byTaskId.get(id)
+    if (p) p.status = statusOf(status)
+  }
 
   for (const href of publishedFiles) artifacts.delete(href)
 

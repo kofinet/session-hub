@@ -93,12 +93,12 @@ What **the current session** did, every item clickable; nothing from other sessi
 - **Pull requests**: the PR of the session's branch and the PRs it created or changed, with checks and review state.
 - **Processes**: what the session started (background tasks, servers, containers, start scripts) with their URLs; ● green when the port is listening.
 - **URLs**: local addresses the session gave that belong to none of its processes.
-- **Accounts**: first, for each `http` check and each running `docker` check with an `accounts` document, a folded group `▸ prod (4)`; press it to see the whole document (test accounts, cards, bank accounts…; headings bold, tables aligned, the first 200 lines) and a link to it; the number counts the logins it lists (read again on every refresh, from the checkout the session works in, its worktree too); a login two documents both list counts once; `▸ staging (no document)` when the document cannot be read. Then the logins the session gave that no such document lists (`user / password`, tables, e-mail logins, addresses on test domains); `user1..3@example.com` is listed as three accounts, each with what the session said about it. No accounts at all, no section.
+- **Accounts**: first, for each `http` check and each running `docker` check with an `accounts` document, a row `→ prod (4) · open its tab` that opens the environment's tab (below); the number counts the logins its document lists (read again on every refresh, from the checkout the session works in, its worktree too); a login two documents both list counts once; `▸ staging (no document)` when the document cannot be read. Then the logins the session gave that no such document lists (`user / password`, tables, e-mail logins, addresses on test domains); `user1..3@example.com` is listed as three accounts, each with what the session said about it. No accounts at all, no section.
 - **Artifacts**: claude.ai artifacts and docs, documents it wrote, design links.
 
 It opens by itself the first time it finds something (from 144 terminal columns up); `r` refreshes it. The status line shows `hub: 2 proc · 1 PR · 3 accounts`.
 
-![Test data per environment in the pane](docs/images/accounts.svg)
+![An environment's tab with its test data](docs/images/accounts.svg)
 
 ## The cow
 
@@ -181,14 +181,27 @@ docs/test_data_staging.md
 docs/test_data_local.md
 ```
 
-The pane shows each under its check's label in the **Accounts** section (production and staging always, a `docker` stack while it runs); pressing it shows the whole document: test accounts, test cards, bank accounts, how to sign in. It is read from the checkout the session works in, so a branch's own changes to it show. A table like this one gives the count next to the label:
+Each environment with a document gets **its own tab** next to the session hub (`🧪 prod test data`), opened by itself once per session: production and staging when the band first reads them, a `docker` stack once it runs. The tab shows the document whole, read again on every refresh from the checkout the session works in (a branch's own changes to it show): what comes before the first `## ` heading always, then each `## ` section folded, the one about accounts (`Accounts`, `Logins`, `Konta`) unfolded until you fold it. `/session-hub:modinstal` proposes this layout:
 
 ```markdown
+# Test data: <environment>
+
+## Accounts
 | Role | Login | Password | Where |
 |---|---|---|---|
 | Tenant admin | admin@shop.example | (1Password: Shop prod) | /admin |
-| Customer | klient@example.com | (1Password: Shop prod) | shop |
+
+## URLs
+- App: https://shop.example/
+
+## Payments
+- Stripe test card OK: 4242 4242 4242 4242
+
+## Notes
+- How to sign in, what not to touch.
 ```
+
+The `Accounts` table gives the count next to the environment in the hub.
 
 For production and staging the Password column says **where the password is kept**, never the password: the document is committed. Local stacks may list their obviously fake seeded logins (`admin / admin123`).
 

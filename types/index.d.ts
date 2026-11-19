@@ -110,8 +110,12 @@ declare module 'claude-code' {
       snapshot: Shaped<Snapshot | null>
       isAutoOpened: boolean
       project: Shaped<ProjectStatus | null>
-      /** labels of the instances whose accounts the pane shows unfolded */
-      openAccounts: string[]
+      /** background tasks' ends the session was notified of outside its messages: task id → status */
+      taskEnds: Record<string, string>
+      /** the environments' tab sections the person folded or unfolded: `<label>\u0000<title>` → open */
+      openSections: Record<string, boolean>
+      /** labels of the environments whose tab this session opened by itself */
+      openedTabs: string[]
       /** the interface's language, from the settings */
       language: 'en' | 'pl'
     }

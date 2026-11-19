@@ -71,3 +71,36 @@ export const docLines = (text: string, maxLines: number = DEFAULT_MAX_LINES): { 
   while (all.length > 0 && all[all.length - 1]?.text === '') all.pop()
   return { lines: all.slice(0, maxLines), hidden: Math.max(0, all.length - maxLines) }
 }
+
+/** `## Title` → `Title`; any other line is no section heading. */
+const sectionTitle = (line: string): string | undefined => {
+  const trimmed = line.trim()
+  return trimmed.startsWith('## ') ? withoutMarks(trimmed.slice(3).trim()) : undefined
+}
+
+/**
+ * A test data document as the environment's tab shows it: what comes before the first `## ` heading (its title,
+ * a note) as `head`, then each `## ` section with its lines, folded or unfolded by the person.
+ */
+export const docSections = (text: string): { head: DocLine[]; sections: { title: string; lines: DocLine[] }[] } => {
+  const source = text.split('\n').map(l => (l.endsWith('\r') ? l.slice(0, -1) : l))
+  const parts: { title: string | undefined; rows: string[] }[] = [{ title: undefined, rows: [] }]
+  for (const line of source) {
+    const title = sectionTitle(line)
+    if (title !== undefined) parts.push({ title, rows: [] })
+    else parts[parts.length - 1]?.rows.push(line)
+  }
+  const [head, ...rest] = parts
+  return {
+    head: docLines((head?.rows ?? []).join('\n'), Number.MAX_SAFE_INTEGER).lines,
+    sections: rest.map(p => ({ title: p.title ?? '', lines: docLines(p.rows.join('\n'), Number.MAX_SAFE_INTEGER).lines })),
+  }
+}
+
+const ACCOUNT_WORDS = ['account', 'login', 'konta', 'konto', 'loginy']
+
+/** The section unfolded by default: the one about accounts and logins, else the first; -1 when there is none. */
+export const accountsSection = (titles: readonly string[]): number => {
+  const named = titles.findIndex(t => ACCOUNT_WORDS.some(w => t.toLowerCase().includes(w)))
+  return named >= 0 ? named : titles.length > 0 ? 0 : -1
+}
