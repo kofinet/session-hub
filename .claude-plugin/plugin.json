@@ -1,6 +1,6 @@
 {
   "name": "session-hub",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Pane with what THIS session did (worktree/branch/remote, PRs, processes and URLs, test accounts, artifacts) and, per project from its settings, a band with CI, deploy, production and local stack health, notifications, guards and a cow.",
   "author": { "name": "Marek Kawa" },
   "license": "MIT",

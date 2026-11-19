@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="session-hub — what this session did, beside the chat" width="760">
+</p>
+
 # session-hub
 
 A Claude Code mod that keeps the state of your work in view while Claude works:
