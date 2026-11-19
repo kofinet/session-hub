@@ -36,26 +36,20 @@ Read just enough to decide; do not run builds, tests or containers.
   `containerPrefixes` (the compose project plus `-`, or the shared prefix of its container names) and,
   when it serves a page, its local `url` (`https://*.localhost`, `http://localhost:<port>`).
   Use this session's transcript too: the stacks and addresses the session started or used.
-  - **Its accounts** (`accounts`, optional): see *Accounts documents* below. The pane shows a local
-    instance's accounts only while it runs.
+  - **Its accounts** (`accounts`, optional): see *Accounts documents* below. Its tab shows the
+    document whether the stack runs or not.
 - **Accounts documents** (`accounts` on an `http` or `docker` check, optional): the repository's
   document of that environment's test accounts and test data (seeded admins, operators, test users,
   how to sign in, test cards), as a path relative to the repository root, one per environment:
-  `docs/test_data_prod.md`, `docs/test_data_staging.md`, `docs/test_data_local.md`. Each environment
+  `docs/test_data_prod.md`, `docs/test_data_staging.md`, `docs/test_data_dev.md`. Each environment
   gets its own tab: its links, a table of the accounts the document names, then every other `## `
   section of it. Look for existing ones first: docs or READMEs
   about test accounts, credentials or a cheat sheet (`test_data_*`, `*CREDENTIALS*`, `*ACCOUNTS*`,
-  a "test accounts" section); keep the names the repository already uses. One document can serve
-  several local stacks. When there is none, propose creating one per environment with that name:
-  the sections `## Accounts` (a table `| Role | Login | Password | Where |`, one row per account),
-  `## URLs`, `## Payments` (test cards, test bank accounts) and `## Notes`, filled from the seed
-  scripts, compose environment, test helpers and this session; a section with nothing in it left out.
-  - Local: only the obviously fake logins those files already hold (`admin@example.local`,
-    `admin / admin123`).
-  - Production and staging: logins only; the Password cell says where the password is kept
-    (`(1Password: Shop prod)`), never the password. Never a value from `.env` or a secret store.
-  - They are files in the repository: write them only after the person confirmed them, with the rest
-    of the proposal.
+  a "test accounts" section). The documents follow one format,
+  [test-data-format.md](../modinstal/test-data-format.md) of the `modinstal` skill: read it and propose
+  `docs/test_data_<label>.md` per environment in that format, converted from what the repository already
+  keeps or filled from the seed scripts, compose environment, test helpers and this session. They are
+  files in the repository: write them only after the person confirmed them, with the rest of the proposal.
 - **Busy containers** (`type: busy`): containers that tests or other sessions run and nobody should
   touch, e.g. parallel e2e lanes started by a script with a fixed name prefix.
 - **Command checks** (`type: command`): only a quick, read-only command that says whether something
@@ -89,7 +83,7 @@ The entry's shape:
     { "type": "workflow", "label": "deploy", "workflow": "Deploy", "role": "deploy" },
     { "type": "workflow", "label": "smoke", "workflow": "Prod smoke", "role": "check" },
     { "type": "http", "label": "prod", "urls": ["https://my-app.example/"], "accounts": "docs/test_data_prod.md" },
-    { "type": "docker", "label": "dev", "containerPrefixes": ["my-app-dev-"], "url": "https://app.localhost/", "accounts": "docs/test_data_local.md" },
+    { "type": "docker", "label": "dev", "containerPrefixes": ["my-app-dev-"], "url": "https://app.localhost/", "accounts": "docs/test_data_dev.md" },
     { "type": "busy", "label": "e2e", "containerPrefixes": ["my-app-e2e-"] },
     { "type": "command", "label": "types", "command": ["npx", "tsc", "--noEmit"], "everySeconds": 600 }
   ],

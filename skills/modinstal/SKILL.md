@@ -47,44 +47,31 @@ Follow sections 2 and 3 of the `session-hub:setup` skill (load it with the Skill
 `command` checks), the guards (`mainCheckout`, `migrationDirs`) and the entry's shape. With an existing
 entry, start from it and propose only changes.
 
-Then the **test data documents**, one per environment the entry names (`prod`, `staging`, local stacks):
-`docs/test_data_<environment>.md` unless the repository already keeps such a document under another
-name (then reuse it). For each:
+Then the **test data documents**: every environment the entry names (each `http` and `docker` check:
+`prod`, `staging`, local stacks) gets one, in the format of [test-data-format.md](test-data-format.md) (read
+it now; it is the only format session-hub's tabs are made for). This runs on the first install and again
+every time the person runs `/session-hub:modinstal`, so a re-run brings the documents up to the format. For
+each environment:
 
-- it exists: point the check's `accounts` at it;
-- it does not: propose it, filled from what step 2 found, in these `## ` sections (the environment's
-  tab shows the accounts as one table and every other section under its heading), leaving out a
-  section with nothing in it:
+- **`docs/test_data_<label>.md` exists and follows the format**: point the check's `accounts` at it; propose
+  only the rows step 2 found that it lacks.
+- **It exists in another shape, or the check's `accounts` names another document** (a cheat sheet,
+  `LOCAL_TEST_CREDENTIALS.md`): propose `docs/test_data_<label>.md` converted from it as the format's
+  *Converting* section says (every account, bank account, company, card and URL a table row, nothing
+  dropped), and point `accounts` at the new file. Ask whether the old document stays (with a pointer to the
+  new one as its first line) or is removed; keep it when unsure.
+- **There is none**: propose it, filled from what step 2 found, the environment's URLs from its check at
+  least. A section with nothing in it is left out.
 
-  ```markdown
-  # Test data: <environment>
-  
-  ## Accounts
-  | Role | Login | Password | Where |
-  |---|---|---|---|
-  | Tenant admin | admin@shop.example | (1Password: Shop prod) | /admin |
-  
-  ## URLs
-  - App: https://shop.example/
-  
-  ## Payments
-  - Stripe test card OK: 4242 4242 4242 4242
-  
-  ## Notes
-  - How to sign in, what not to touch.
-  ```
-
-  Production and staging: logins only, the Password cell says where the
-  password is kept (`(1Password: Shop prod)`), never the password itself. Local: only the obviously
-  fake seeded logins the repository already holds. Never a value from `.env` or a secret store.
+Show each proposed document whole, as it will be written.
 
 When the project's `CLAUDE.md` does not say where its test data lives, propose one line for it, e.g.
-`Test data per environment: docs/test_data_prod.md, docs/test_data_staging.md, docs/test_data_local.md.`
+`Test data per environment: docs/test_data_prod.md, docs/test_data_staging.md, docs/test_data_dev.md.`
 
 ## 4. Propose and confirm
 
 Show, briefly: a table of the checks (label, type, what it checks, where you found it), the guards,
-the test data documents (existing / new, with the new ones' content), the `CLAUDE.md` line, and the
+the test data documents (kept / converted / new, each new or rewritten one whole), the `CLAUDE.md` line, and the
 JSON entry. Then ask with AskUserQuestion, in one call, two questions:
 
 - whether to apply it (options: apply all; change something, where the person says what);
@@ -98,8 +85,9 @@ Apply their changes and ask again until they confirm.
 
 Only after the confirmation:
 
-1. Write the new test data documents and the `CLAUDE.md` line with Write/Edit (they belong in the
-   repository; do not commit them unless the person asks).
+1. Write the test data documents (new and converted ones, the pointer in an old one that stays) and the
+   `CLAUDE.md` line with Write/Edit (they belong in the repository; do not commit them unless the person
+   asks).
 2. Save the entry and the language with `mcp__session-hub__project_save`
    `{ "project": <entry>, "language": "en" | "pl" }`. Never write the settings file with Write or
    Edit, and never put it in the repository.
@@ -107,6 +95,6 @@ Only after the confirmation:
 ## 6. Reload
 
 Ask the person to run `/reload-plugins` (or start a new session), so the plugin and its settings
-are loaded fresh. Then say what to expect: the band above the prompt shows the checks within a minute,
-`/hub` opens the session's pane, and its **Accounts** section (**Konta** in Polish) lists the test
-data documents under their environments.
+are loaded fresh. Then say what to expect: the session hub opens by itself when a session starts, next
+to it every environment's tab (`🧪 <label> test data`) with its document, whether the environment runs or
+not, and the band above the prompt shows the checks within a minute.

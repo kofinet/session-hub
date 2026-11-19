@@ -205,9 +205,10 @@ async function checkStatuses($: EngineInterface, p: Project, check: Check, got: 
     case 'docker': {
       const own = ownContainers(got.containers, check.containerPrefixes)
       const isRunning = own.length > 0
+      // the document is read while the stack is off too: its tab is there from the session's start
       const [urlOk, accounts] = await Promise.all([
         check.url === undefined || !isRunning ? undefined : curlOk($, check.url),
-        check.accounts === undefined || !isRunning ? undefined : instanceAccounts($, repoPath(sessionRoot, check.accounts)),
+        check.accounts === undefined ? undefined : instanceAccounts($, repoPath(sessionRoot, check.accounts)),
       ])
       const urls = check.url === undefined ? [] : [check.url]
       return [{ ...base, ...dockerFacts(own, urlOk), ...(accounts !== undefined && { accounts, urls }) }]

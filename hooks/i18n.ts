@@ -41,11 +41,12 @@ export type Texts = {
     tabTitle: (label: string) => string
     links: string
     document: string
-    login: string
-    password: string
-    notes: string
+    bankAccounts: string
+    companies: string
+    cards: string
     noAccounts: string
     notRunning: string
+    stackOff: string
   }
   band: { handsOff: string; local: string }
   statusLine: { processes: (n: number) => string; prs: (n: number) => string; accounts: (n: number) => string }
@@ -99,11 +100,12 @@ const EN: Texts = {
     tabTitle: label => `🧪 ${label} test data`,
     links: 'Links',
     document: 'document',
-    login: 'Login',
-    password: 'Password',
-    notes: 'Notes',
+    bankAccounts: 'Bank accounts',
+    companies: 'Companies (NIP)',
+    cards: 'Payment cards',
     noAccounts: 'the document lists no accounts',
     notRunning: 'the environment is off: no test data now',
+    stackOff: 'the stack is off; this is its test data',
   },
   band: { handsOff: 'hands off', local: 'local' },
   statusLine: { processes: n => `${n} proc`, prs: n => `${n} PR`, accounts: n => `${n} ${n === 1 ? 'account' : 'accounts'}` },
@@ -167,11 +169,12 @@ const PL: Texts = {
     tabTitle: label => `🧪 Dane testowe ${label}`,
     links: 'Linki',
     document: 'dokument',
-    login: 'Login',
-    password: 'Hasło',
-    notes: 'Uwagi',
+    bankAccounts: 'Konta bankowe',
+    companies: 'Firmy (NIP)',
+    cards: 'Karty płatnicze',
     noAccounts: 'dokument nie wymienia kont',
     notRunning: 'środowisko nie działa: teraz brak danych testowych',
+    stackOff: 'stos jest wyłączony; to jego dane testowe',
   },
   band: { handsOff: 'nie ruszać', local: 'lokalne instancje' },
   statusLine: { processes: n => `${n} proc`, prs: n => `${n} PR`, accounts: n => `${n} ${plural(n, 'konto', 'konta', 'kont')}` },

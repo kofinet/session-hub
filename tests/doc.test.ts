@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { docLines, docSections, isAccountsTitle, withoutAccountTables } from '../hooks/doc'
+import { docFacts, docLines, docSections, isAccountsTitle, withoutAccountTables } from '../hooks/doc'
 
 test('a document is shown line by line: headings bold, markdown marks gone, runs of blank lines as one', async () => {
   const doc = [
@@ -124,4 +124,58 @@ test('a table of addresses stays, even with a login column', async () => {
 test('a section about accounts is told by its title', async () => {
   expect(['Accounts', 'Konta testowe', 'Test logins', 'Payments', 'URLs'].map(isAccountsTitle)).toEqual([true, true, true, false, false])
   expect(['Konto bankowe testowe (NRB)', 'Bank accounts', 'IBAN'].map(isAccountsTitle)).toEqual([false, false, false])
+})
+
+/** A cheat sheet as people write them: prose, blockquotes, bullets, tables of addresses. */
+const CHEAT_SHEET = [
+  '# Lokalne konta (ściąga)',
+  '',
+  'Wszystko to atrapy — `FAKE_GOOGLE_AUTH=1`, źródło prawdy: `tools/deployment/docker/entrypoint.sh`.',
+  '',
+  '> `klient2@example.com` (firma, NIP 1111111111) — opłacony.',
+  '',
+  '## Firmy testowe',
+  '- `1111111111`',
+  '- `1234563218`',
+  '- 1234567890 (zła suma kontrolna)',
+  '',
+  '## Konto bankowe testowe',
+  '- `PL 00 1234 5678 9012 3456 7890 1234` (domyślne konto testowe)',
+  '',
+  '## Karty',
+  '| Karta | Numer | Wynik |',
+  '|---|---|---|',
+  '| Visa | `4242 4242 4242 4242` | OK |',
+  '',
+  '## Endpointy',
+  '| URL | Co | Login |',
+  '|---|---|---|',
+  '| `https://app.shop.localhost` | admin tenanta | `/login` |',
+  '| `http://localhost:8025` | MailHog | — |',
+  '',
+  '- **Panel operatora:** `https://shop.localhost/admin/logowanie` → `operator@example.com`.',
+  '- Kod OTP odbierasz na http://localhost:8025.',
+].join('\n')
+
+test('a document gives only its data, by kind: addresses, bank accounts, companies with a valid NIP, cards; prose is left out', async () => {
+  expect(docFacts(CHEAT_SHEET)).toEqual({
+    urls: [
+      { value: 'https://app.shop.localhost', note: 'admin tenanta · /login' },
+      { value: 'http://localhost:8025', note: 'MailHog' },
+      { value: 'https://shop.localhost/admin/logowanie' },
+    ],
+    bankAccounts: [{ value: 'PL 00 1234 5678 9012 3456 7890 1234' }],
+    companies: [{ value: '1111111111' }, { value: '1234563218' }],
+    cards: [{ value: '4242 4242 4242 4242', note: 'Visa · OK' }],
+  })
+})
+
+test('a document without data gives empty lists', async () => {
+  expect(docFacts('# Notes\n\nJust prose, 2026, port 5173.')).toEqual({ urls: [], bankAccounts: [], companies: [], cards: [] })
+})
+
+test('a bank account with its country letters glued to the number is one bank account', async () => {
+  expect(docFacts('| Default | `PL00 1234 5678 9012 3456 7890 1234` |').bankAccounts).toEqual([
+    { value: 'PL00 1234 5678 9012 3456 7890 1234', note: 'Default' },
+  ])
 })

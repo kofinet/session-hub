@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Account, Process, PullRequest, Snapshot, Url, Worktree } from '../types'
 import { extract, fileHref, listeningPorts, localUrls, parseWorktrees, pullRepo, summarizeChecks, taskNotifications } from './extract'
 import type { CheckRun, FoundPr, FoundProcess, FoundUrl, Msg } from './extract'
-import { docSections, isAccountsTitle, withoutAccountTables } from './doc'
+import { docFacts } from './doc'
 import { afterTurn, registerProject, startProject } from './project'
 import { run } from './run'
 import { DEFAULT_LANGUAGE, textsFor } from './i18n'
@@ -189,8 +189,8 @@ const refresh = ($: EngineInterface): Promise<void> => {
       await update($, snapshot, () => next)
       await showStatus($)
 
-      const hasNews = processes.length + prs.length + next.urls.length + next.artifacts.length > 0
-      if (hasNews && !(await read($, isAutoOpened))) {
+      // once per session, at its start: the hub is in view before the session did anything
+      if (!(await read($, isAutoOpened))) {
         await update($, isAutoOpened, () => true)
         void $.ui.open({ id: PANE, title: 'Session hub' })
       }
@@ -437,12 +437,14 @@ export const register: Register = on => {
   })
 }
 
-/** in the accounts table, for a login the document gives no password */
-const PASSWORD_MISSING = '—'
+/** how a document's account note joins the cells of its row: the first one is the account's role */
+const NOTE_SEPARATOR = ' · '
+const withoutSlash = (url: string) => (url.endsWith('/') ? url.slice(0, -1) : url)
 
 /**
- * An environment's tab: its links (the addresses from the settings, the document), a table of its accounts taken
- * from the document, then the rest of the document's test data (cards, bank accounts, notes) by its `## ` sections.
+ * An environment's tab: its links (the addresses from the settings, the document), then only the document's data, by
+ * kind, one short line each: accounts with their role, addresses, bank accounts, companies, cards. Its prose stays in
+ * the document, a click away.
  */
 async function renderEnvironment($: EngineInterface, e: Parameters<EngineInterface['ui']['resolve']>[0] & { requestId: string }) {
   const { Box, Text, Link } = $.ui.resolve(e)
@@ -484,55 +486,67 @@ async function renderEnvironment($: EngineInterface, e: Parameters<EngineInterfa
   }
 
   const list = accounts.list
-  const loginWidth = Math.max(t.env.login.length, ...list.map(a => a.user.length))
-  const passwordWidth = Math.max(t.env.password.length, ...list.map(a => (a.password ?? PASSWORD_MISSING).length))
-  const { head, sections } = docSections(withoutAccountTables(accounts.text))
-  const accountNotes = sections.filter(s => isAccountsTitle(s.title)).flatMap(s => s.lines)
-  const rest = sections.filter(s => !isAccountsTitle(s.title) && s.lines.length > 0)
-  const notes = head.filter(l => !l.isBold && l.text !== '')
-  const line = (l: { text: string; isBold: boolean }) => (
-    <Text bold={l.isBold}>
-      {'  '}
-      {l.text}
-    </Text>
-  )
+  const hasPasswords = list.some(a => a.password !== undefined)
+  const loginWidth = Math.max(0, ...list.map(a => a.user.length))
+  const passwordWidth = Math.max(0, ...list.map(a => (a.password ?? '').length))
+  const facts = docFacts(accounts.text)
+  const linked = new Set((check.urls ?? []).map(withoutSlash))
+  const urls = facts.urls.filter(u => !linked.has(withoutSlash(u.value)))
+  const groups = [
+    { title: t.env.bankAccounts, facts: facts.bankAccounts },
+    { title: t.env.companies, facts: facts.companies },
+    { title: t.env.cards, facts: facts.cards },
+  ].filter(g => g.facts.length > 0)
+  const note = (text: string | undefined) => text !== undefined && <Text dimColor>  {text}</Text>
 
   return (
     <Box flexDirection="column" gap={1}>
       {links}
-      {notes.length > 0 && <Box flexDirection="column">{notes.map(l => <Text dimColor>{l.text}</Text>)}</Box>}
+      {check.type === 'docker' && check.state === 'skipped' && <Text color="warning">{t.env.stackOff}</Text>}
       <Box flexDirection="column">
         {heading(t.pane.accounts, list.length)}
-        {list.length === 0 ? (
-          <Text dimColor>  {t.env.noAccounts}</Text>
-        ) : (
-          <Text bold>
-            {'  '}
-            {t.env.login.padEnd(loginWidth)}
-            {'  '}
-            {t.env.password.padEnd(passwordWidth)}
-            {'  '}
-            {t.env.notes}
-          </Text>
-        )}
+        {list.length === 0 && <Text dimColor>  {t.env.noAccounts}</Text>}
         {list.map(a => (
           <Text wrap="truncate-end">
             {'  '}
             <Text color="suggestion">{a.user.padEnd(loginWidth)}</Text>
-            {'  '}
-            <Text color={a.password === undefined ? 'inactive' : 'warning'}>{(a.password ?? PASSWORD_MISSING).padEnd(passwordWidth)}</Text>
-            {'  '}
-            <Text dimColor>{a.note ?? ''}</Text>
+            {hasPasswords && (
+              <Text>
+                {'  '}
+                <Text color="warning">{(a.password ?? '').padEnd(passwordWidth)}</Text>
+              </Text>
+            )}
+            {note(a.note?.split(NOTE_SEPARATOR)[0])}
           </Text>
         ))}
-        {accountNotes.map(line)}
       </Box>
-      {rest.map(section => (
+      {urls.length > 0 && (
         <Box flexDirection="column">
-          {heading(section.title)}
-          {section.lines.map(line)}
+          {heading(t.pane.urls, urls.length)}
+          {urls.map(u => (
+            <Text wrap="truncate-end">
+              {'  '}
+              <Link href={u.value}>{u.value}</Link>
+              {note(u.note)}
+            </Text>
+          ))}
         </Box>
-      ))}
+      )}
+      {groups.map(g => {
+        const width = Math.max(...g.facts.map(f => f.value.length))
+        return (
+          <Box flexDirection="column">
+            {heading(g.title, g.facts.length)}
+            {g.facts.map(f => (
+              <Text wrap="truncate-end">
+                {'  '}
+                <Text color="suggestion">{f.value.padEnd(width)}</Text>
+                {note(f.note)}
+              </Text>
+            ))}
+          </Box>
+        )
+      })}
     </Box>
   )
 }

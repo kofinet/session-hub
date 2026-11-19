@@ -271,7 +271,7 @@ test("no Accounts section in the hub when the environments' documents list every
   }
 })
 
-test("an environment's tab: its links, a table of its accounts, then the rest of its test data by section", async ($, on) => {
+test("an environment's tab: its links, then only the document's data by kind, its prose left out", async ($, on) => {
   const project = withInstance({
     kind: 'listed',
     doc: 'C:/repo/docs/test_data_local.md',
@@ -288,27 +288,26 @@ test("an environment's tab: its links, a table of its accounts, then the rest of
     expect(await tab.find({ type: 'Text', text: 'Links' })).toBeDefined()
     expect(await tab.find({ type: 'Link', text: 'https://shop.localhost/' })).toBeDefined()
     if (surface === 'terminal') expect(await tab.find({ type: 'Link', text: 'C:/repo/docs/test_data_local.md' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: 'Seeded by npm run db:seed.' })).toBeDefined()
     expect(await tab.find({ type: 'Text', text: 'Accounts (1)' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: `  ${'Login'.padEnd(16)}  Password  Notes` })).toBeDefined()
     expect(await tab.find({ type: 'Text', text: '  admin@shop.local  admin123  Admin' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: 'Admin  admin@shop.local' })).toBeUndefined()
-    expect(await tab.find({ type: 'Text', text: 'URLs' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: '  https://shop.localhost' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: 'Payments' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
+    // the check's own address is in Links, not again under URLs
+    expect(await tab.find({ type: 'Text', text: 'URLs (1)' })).toBeUndefined()
+    expect(await tab.find({ type: 'Text', text: 'Payment cards (1)' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '  4242 4242 4242 4242' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'Seeded by npm run db:seed.' })).toBeUndefined()
+    expect(await tab.find({ type: 'Text', text: 'Payments' })).toBeUndefined()
     await tab.unmount()
   }
 })
 
-test("an account without a password in the document shows a dash in the tab's table", async ($, on) => {
+test("an account without a password in the document is its login alone, no password column", async ($, on) => {
   const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/test_data_prod.md', text: '', list: [{ user: 'qa@shop.example' }] })
   on('state.get', ($, e, next) => {
     if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
   const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
-  expect(await tab.find({ type: 'Text', text: '  qa@shop.example  —         ' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: '  qa@shop.example' })).toBeDefined()
   await tab.unmount()
 })
 
@@ -359,12 +358,12 @@ const shopSession = (
 ) => {
   const disk = new Map<string, string>([[HUB_SETTINGS_FILE, hubSettings(checks)], ...Object.entries(files)])
   const said = new Map<string, string>([
-    ['git rev-parse --show-toplevel', cwd],
     ['git worktree list --porcelain', `worktree ${MAIN_CHECKOUT}\n\nworktree ${SESSION_WORKTREE}`],
     ['git remote get-url origin', origin],
     ['docker ps --format {{.Names}}\t{{.State}}\t{{.Status}}', 'shop-dev-web\trunning\tUp 1 minute'],
   ])
-  const shown = { status: undefined as string | undefined, opened: [] as string[] }
+  // `cwd` is where the session works now: a test moves it as EnterWorktree does
+  const shown = { status: undefined as string | undefined, opened: [] as string[], isHubOpened: false, cwd }
   mock.env(on, { SESSION_HUB_SETTINGS: HUB_SETTINGS_FILE })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: undefined as never }))
@@ -376,14 +375,16 @@ const shopSession = (
     const text = onDisk(e.path)
     return text === undefined ? next(e) : { value: text }
   })
-  on('session.cwd', () => ({ value: cwd }))
+  on('session.cwd', () => ({ value: shown.cwd }))
   on('session.messages', () => ({ value: [] as never }))
   on('process.run', ($, e) => {
-    const stdout = said.get(e.argv.join(' '))
+    const argv = e.argv.join(' ')
+    const stdout = argv === 'git rev-parse --show-toplevel' ? shown.cwd : said.get(argv)
     return { value: (stdout === undefined ? { exitCode: 1, stdout: '', stderr: '' } : { exitCode: 0, stdout, stderr: '' }) as never }
   })
   on('ui.open', ($, e) => {
-    if (e.id !== 'session-hub') shown.opened.push(`${e.id} ${e.title ?? ''}`)
+    if (e.id === 'session-hub') shown.isHubOpened = true
+    else shown.opened.push(`${e.id} ${e.title ?? ''}`)
     return { value: { id: e.id, isPlaced: true } as never }
   })
   on('ui.status', ($, e) => {
@@ -404,6 +405,78 @@ test("the status line leaves a running environment's accounts to its tab", async
   expect(shown.opened).toEqual(['session-hub-env-dev 🧪 dev test data'])
 })
 
+test('the hub opens by itself when the session starts, before the session did anything', async ($, on) => {
+  const shown = shopSession(on, MAIN_CHECKOUT, {})
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: MAIN_CHECKOUT, surface: 'terminal', isInteractive: true })
+
+  await clock.advance(1_000)
+
+  expect(shown.isHubOpened).toBe(true)
+})
+
+test("a local stack's tab opens when the session starts, with its document, while the stack is off", async ($, on) => {
+  const offStack = { ...DEV_STACK, containerPrefixes: ['shop-off-'] }
+  const shown = shopSession(on, MAIN_CHECKOUT, { [`${MAIN_CHECKOUT}/docs/accounts.md`]: ACCOUNTS_DOC }, [offStack])
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: MAIN_CHECKOUT, surface: 'terminal', isInteractive: true })
+
+  await clock.advance(1_000)
+
+  expect(shown.opened).toEqual(['session-hub-env-dev 🧪 dev test data'])
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await tab.find({ type: 'Text', text: 'the stack is off; this is its test data' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: '  admin    admin123  Admin' })).toBeDefined()
+  await tab.unmount()
+})
+
+/** A test data document as /session-hub:modinstal writes it (skills/modinstal/test-data-format.md), in Polish. */
+const FORMAT_DOC = [
+  '# Dane testowe: dev',
+  '',
+  'Wszystko to atrapy. Źródło prawdy: tools/seed.mjs.',
+  '',
+  '## Konta testowe',
+  '| Rola | Login | Hasło | Gdzie | Uwagi |',
+  '|---|---|---|---|---|',
+  '| Admin tenanta | `admin@shop.local` | `admin123` | /admin | seed |',
+  '| Klient | `klient1@example.com` | (tylko e-mail) | /panel | |',
+  '',
+  '## Konta bankowe',
+  '| Nazwa | Numer | Uwagi |',
+  '|---|---|---|',
+  '| Domyślne e2e | `PL00 1234 5678 9012 3456 7890 1234` | atrapa |',
+  '',
+  '## Firmy',
+  '| Nazwa | NIP | Uwagi |',
+  '|---|---|---|',
+  '| Firma Testowa | `1111111111` | FakeGus |',
+  '',
+  '## Uwagi',
+  '- Logowanie samym e-mailem.',
+].join('\n')
+
+test("a document in the test data format: accounts, bank accounts and companies, one short line each", async ($, on) => {
+  shopSession(on, MAIN_CHECKOUT, { [`${MAIN_CHECKOUT}/docs/test_data_dev.md`]: FORMAT_DOC }, [{ ...DEV_STACK, accounts: 'docs/test_data_dev.md' }])
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: MAIN_CHECKOUT, surface: 'terminal', isInteractive: true })
+
+  await clock.advance(1_000)
+
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await tab.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: `  ${'admin@shop.local'.padEnd(19)}  admin123  Admin tenanta` })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: `  klient1@example.com  ${''.padEnd(8)}  Klient` })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'Bank accounts (1)' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: '  PL00 1234 5678 9012 3456 7890 1234  Domyślne e2e · atrapa' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'Companies (NIP) (1)' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: '  1111111111  Firma Testowa · FakeGus' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'Wszystko to atrapy. Źródło prawdy: tools/seed.mjs.' })).toBeUndefined()
+  expect(await tab.find({ type: 'Text', text: '  - Logowanie samym e-mailem.' })).toBeUndefined()
+  await tab.unmount()
+})
+
 test("an environment's document is read from the worktree the session works in", async ($, on) => {
   shopSession(on, SESSION_WORKTREE, { [`${SESSION_WORKTREE}/docs/accounts.md`]: ACCOUNTS_DOC })
   const clock = mock.clock(on)
@@ -415,6 +488,29 @@ test("an environment's document is read from the worktree the session works in",
   expect(await tab.find({ type: 'Text', text: 'no such document' })).toBeUndefined()
   expect(await tab.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
   await tab.unmount()
+})
+
+test("after the session enters a worktree, the environment's document is read from that worktree", async ($, on) => {
+  const oneAccount = ['| Role | Login | Password |', '|---|---|---|', '| Admin | admin | admin123 |'].join('\n')
+  const shown = shopSession(on, MAIN_CHECKOUT, {
+    [`${MAIN_CHECKOUT}/docs/accounts.md`]: oneAccount,
+    [`${SESSION_WORKTREE}/docs/accounts.md`]: ACCOUNTS_DOC,
+  })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: MAIN_CHECKOUT, surface: 'terminal', isInteractive: true })
+  await clock.advance(1_000)
+  const before = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await before.find({ type: 'Text', text: 'Accounts (1)' })).toBeDefined()
+  await before.unmount()
+
+  // EnterWorktree: the session's folder is now the worktree
+  shown.cwd = SESSION_WORKTREE
+  await clock.advance(60_000)
+
+  const after = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await after.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+  expect(await after.find({ type: 'Link', text: `${SESSION_WORKTREE}/docs/accounts.md` })).toBeDefined()
+  await after.unmount()
 })
 
 test("production and staging get their tabs by themselves, the one with a document opened, with its links and accounts", async ($, on) => {
@@ -438,7 +534,7 @@ test("production and staging get their tabs by themselves, the one with a docume
   await tab.unmount()
 })
 
-test("an environment's tab shows its document whole, however long", async ($, on) => {
+test("a long document of prose leaves its tab short: none of its prose is shown", async ($, on) => {
   const text = Array.from({ length: 230 }, (_, i) => `line ${i + 1}`).join('\n')
   const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/accounts.md', text, list: [] })
   on('state.get', ($, e, next) => {
@@ -446,7 +542,8 @@ test("an environment's tab shows its document whole, however long", async ($, on
     return next(e)
   })
   const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
-  expect(await tab.find({ type: 'Text', text: 'line 230' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'line 1' })).toBeUndefined()
+  expect(await tab.find({ type: 'Text', text: 'line 230' })).toBeUndefined()
   await tab.unmount()
 })
 

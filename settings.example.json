@@ -14,7 +14,7 @@
         { "type": "workflow", "label": "smoke", "workflow": "Prod smoke", "role": "check" },
         { "type": "http", "label": "prod", "urls": ["https://my-app.example/", "https://api.my-app.example/health"], "accounts": "docs/test_data_prod.md" },
         { "type": "http", "label": "staging", "urls": ["https://staging.my-app.example/"], "accounts": "docs/test_data_staging.md" },
-        { "type": "docker", "label": "dev", "containerPrefixes": ["my-app-dev-"], "url": "https://app.localhost/", "accounts": "docs/test_data_local.md" },
+        { "type": "docker", "label": "dev", "containerPrefixes": ["my-app-dev-"], "url": "https://app.localhost/", "accounts": "docs/test_data_dev.md" },
         { "type": "busy", "label": "e2e", "containerPrefixes": ["my-app-e2e-"] },
         { "type": "command", "label": "types", "command": ["npx", "tsc", "--noEmit"], "everySeconds": 600 }
       ],

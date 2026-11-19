@@ -136,3 +136,128 @@ export const withoutAccountTables = (text: string): string => {
   }
   return kept.join('\n')
 }
+
+/** A value the environment's tab lists, with what its table row says about it. */
+export type Fact = { value: string; note?: string }
+
+/** The data of a test data document by kind, whatever shape the document gives it in; its prose is left out. */
+export type DocFacts = { urls: Fact[]; bankAccounts: Fact[]; companies: Fact[]; cards: Fact[] }
+
+const isDigit = (c: string): boolean => c >= '0' && c <= '9'
+const isUpper = (c: string): boolean => c >= 'A' && c <= 'Z'
+const isLetter = (c: string): boolean => c.toLowerCase() !== c.toUpperCase()
+
+const URL_STARTS = ['https://', 'http://']
+const URL_STOP = ' \t|`)"\'<>]'
+const URL_TRAILING = '.,;:!?'
+
+/** `http://` and `https://` addresses in a line, trailing punctuation left out. */
+const urlsIn = (line: string): string[] => {
+  const found: string[] = []
+  for (let p = 0; p < line.length; p++) {
+    if (p > 0 && isLetter(line.charAt(p - 1))) continue
+    const start = URL_STARTS.find(s => line.startsWith(s, p))
+    if (start === undefined) continue
+    let end = p + start.length
+    while (end < line.length && !URL_STOP.includes(line.charAt(end))) end++
+    while (end > p + start.length && URL_TRAILING.includes(line.charAt(end - 1))) end--
+    if (end > p + start.length) found.push(line.slice(p, end))
+    p = end
+  }
+  return found
+}
+
+/** Two capital letters right before `at` (`PL`), not the end of a longer word: an IBAN's country. */
+const countryBefore = (line: string, at: number): string | undefined => {
+  const country = line.slice(at - 2, at)
+  const isAlone = at - 2 === 0 || !isLetter(line.charAt(at - 3))
+  return at >= 2 && [...country].every(isUpper) && isAlone ? country : undefined
+}
+
+/** Runs of digits, single spaces or hyphens between them: `00 1234 5678`, `111-111-11-11`; an IBAN's country letters kept. */
+const numbersIn = (line: string): { shown: string; digits: string }[] => {
+  const found: { shown: string; digits: string }[] = []
+  let i = 0
+  while (i < line.length) {
+    const previous = i > 0 ? line.charAt(i - 1) : ''
+    const glued = isLetter(previous) ? countryBefore(line, i) : undefined
+    if (!isDigit(line.charAt(i)) || isDigit(previous) || (isLetter(previous) && glued === undefined)) {
+      i++
+      continue
+    }
+    let end = i
+    while (end < line.length) {
+      const c = line.charAt(end)
+      const isSeparator = (c === ' ' || c === '-') && isDigit(line.charAt(end + 1))
+      if (!isDigit(c) && !isSeparator) break
+      end++
+    }
+    const run = line.slice(i, end)
+    const before = line.slice(0, i).trimEnd()
+    const spaced = glued === undefined ? countryBefore(before, before.length) : undefined
+    const shown = glued !== undefined ? `${glued}${run}` : spaced !== undefined ? `${spaced} ${run}` : run
+    found.push({ shown, digits: [...run].filter(isDigit).join('') })
+    i = end
+  }
+  return found
+}
+
+const NIP_WEIGHTS = [6, 5, 7, 2, 3, 4, 5, 6, 7]
+const NRB_DIGITS = 26
+const NIP_DIGITS = 10
+const CARD_MIN_DIGITS = 13
+const CARD_MAX_DIGITS = 19
+
+const isNip = (digits: string): boolean => {
+  if (digits.length !== NIP_DIGITS) return false
+  const sum = NIP_WEIGHTS.reduce((acc, w, i) => acc + w * Number(digits.charAt(i)), 0)
+  return sum % 11 === Number(digits.charAt(9))
+}
+
+const isLuhn = (digits: string): boolean => {
+  let sum = 0
+  for (let i = 0; i < digits.length; i++) {
+    let d = Number(digits.charAt(digits.length - 1 - i))
+    if (i % 2 === 1) d = d * 2 > 9 ? d * 2 - 9 : d * 2
+    sum += d
+  }
+  return sum % 10 === 0
+}
+
+const numberKind = (digits: string): Exclude<keyof DocFacts, 'urls'> | undefined => {
+  if (digits.length === NRB_DIGITS) return 'bankAccounts'
+  if (isNip(digits)) return 'companies'
+  if (digits.length >= CARD_MIN_DIGITS && digits.length <= CARD_MAX_DIGITS && isLuhn(digits)) return 'cards'
+  return undefined
+}
+
+const EMPTY_CELLS = new Set(['', '—', '-', '–'])
+
+export const docFacts = (text: string): DocFacts => {
+  const facts: DocFacts = { urls: [], bankAccounts: [], companies: [], cards: [] }
+  const keys = new Map<string, Fact>()
+  const add = (kind: keyof DocFacts, key: string, fact: Fact) => {
+    const known = keys.get(`${kind}:${key}`)
+    if (known === undefined) {
+      keys.set(`${kind}:${key}`, fact)
+      facts[kind].push(fact)
+    } else if (known.note === undefined && fact.note !== undefined) {
+      known.note = fact.note
+    }
+  }
+  for (const raw of text.split('\n')) {
+    const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw
+    const cells = isTableRow(line) ? cellsOf(line) : [withoutMarks(line)]
+    if (isRule(cells)) continue
+    cells.forEach((cell, c) => {
+      const others = cells.filter((o, j) => j !== c && !EMPTY_CELLS.has(o))
+      const note = isTableRow(line) && others.length > 0 ? { note: others.join(' · ') } : {}
+      for (const url of urlsIn(cell)) add('urls', url.endsWith('/') ? url.slice(0, -1) : url, { value: url, ...note })
+      for (const n of numbersIn(cell)) {
+        const kind = numberKind(n.digits)
+        if (kind !== undefined) add(kind, n.digits, { value: n.shown, ...note })
+      }
+    })
+  }
+  return facts
+}

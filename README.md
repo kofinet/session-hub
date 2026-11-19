@@ -100,7 +100,7 @@ What **the current session** did, every item clickable; nothing from other sessi
 - **Accounts**: the logins the session gave that no environment's test data document lists (those are in the environment's own tab, below) (`user / password`, tables, e-mail logins, addresses on test domains); `user1..3@example.com` is listed as three accounts, each with what the session said about it. No accounts at all, no section.
 - **Artifacts**: claude.ai artifacts and docs, documents it wrote, design links.
 
-It opens by itself the first time it finds something (from 144 terminal columns up); `r` refreshes it. The status line shows `hub: 2 proc · 1 PR · 3 accounts`.
+It opens by itself when the session starts; `r` refreshes it. The status line shows `hub: 2 proc · 1 PR · 3 accounts`.
 
 ![An environment's tab with its test data](docs/images/accounts.svg)
 
@@ -134,7 +134,7 @@ The full shape, with every kind of check, is in [`settings.example.json`](settin
         { "type": "workflow", "label": "deploy", "workflow": "Deploy to production", "role": "deploy" },
         { "type": "http", "label": "prod", "urls": ["https://my-app.example/"], "accounts": "docs/test_data_prod.md" },
         { "type": "http", "label": "staging", "urls": ["https://staging.my-app.example/"], "accounts": "docs/test_data_staging.md" },
-        { "type": "docker", "label": "dev", "containerPrefixes": ["my-app-dev-"], "url": "https://app.localhost/", "accounts": "docs/test_data_local.md" },
+        { "type": "docker", "label": "dev", "containerPrefixes": ["my-app-dev-"], "url": "https://app.localhost/", "accounts": "docs/test_data_dev.md" },
         { "type": "busy", "label": "e2e", "containerPrefixes": ["my-app-e2e-"] },
         { "type": "command", "label": "types", "command": ["npx", "tsc", "--noEmit"], "everySeconds": 600 }
       ],
@@ -177,43 +177,50 @@ Every check has a `type` and a short `label` (what the band shows).
 
 ### Test data documents
 
-`accounts` names a Markdown file **in the repository**, relative to its root (an absolute path works too), one per environment:
+`accounts` names a Markdown file **in the repository**, relative to its root (an absolute path works too), one per environment, named after its check's label:
 
 ```
 docs/test_data_prod.md
 docs/test_data_staging.md
-docs/test_data_local.md
+docs/test_data_dev.md
 ```
 
-Each environment with a document gets **its own tab** next to the session hub (`🧪 prod test data`), opened by itself once per session: production and staging when the band first reads them, a `docker` stack once it runs. The document is read again on every refresh from the checkout the session works in, so a branch's own changes to it show. The tab shows, in order:
+Each environment with a document gets **its own tab** next to the session hub (`🧪 prod test data`), opened by itself when the session starts, whether the environment runs or not. The document is read again on every refresh from the checkout the session works in, so a branch's own changes to it show. The tab shows, in order:
 
 - **Links**: the environment's addresses from its check (`urls`, a stack's `url`) and the document itself;
-- **Accounts**: one table of every login the document names (`Login · Password · Notes`, the notes from the rest of its row), whatever shape the document gives them in; the document's own tables of accounts are not repeated;
-- every other `## ` section of the document, in its order, under its heading: URLs, test cards, bank accounts, companies, notes (tables aligned).
+- then **only the document's data, by kind, one short line each**, whatever shape the document gives it in: **Accounts** (login, password when the document gives one, role), **URLs** (with what its table row says about it), **Bank accounts** (26-digit NRB/IBAN), **Companies (NIP)** (a valid NIP checksum), **Payment cards** (a valid Luhn checksum). An empty kind is left out.
 
-`/session-hub:modinstal` proposes this layout:
+Prose, blockquotes and notes are not shown: the details stay in the document, one click away under Links.
+
+The document has one format, [`skills/modinstal/test-data-format.md`](skills/modinstal/test-data-format.md): `## ` sections in a fixed order, and **everything that can be listed in a table** (accounts, URLs, bank accounts, companies, cards), only `## Notes` as bullets:
 
 ```markdown
-# Test data: <environment>
+# Test data: dev
+
+All values below are fake. Source of truth: tools/seed.mjs.
 
 ## Accounts
-| Role | Login | Password | Where |
-|---|---|---|---|
-| Tenant admin | admin@shop.example | (1Password: Shop prod) | /admin |
+| Role | Login | Password | Where | Notes |
+|---|---|---|---|---|
+| Tenant admin | `admin@shop.local` | `admin123` | /admin | seeded by the entrypoint |
 
 ## URLs
-- App: https://shop.example/
+| What | URL | Notes |
+|---|---|---|
+| App | https://app.localhost/ | |
 
-## Payments
-- Stripe test card OK: 4242 4242 4242 4242
+## Bank accounts
+| Name | Number | Notes |
+|---|---|---|
+| Default e2e | `PL00 1234 5678 9012 3456 7890 1234` | fake |
 
 ## Notes
 - How to sign in, what not to touch.
 ```
 
-The `Accounts` table gives the count next to the environment in the hub.
+`/session-hub:modinstal` writes these documents on the first install, and each time you run it again brings them up to the format: a document in another shape (a cheat sheet, `LOCAL_TEST_CREDENTIALS.md`) is converted into `docs/test_data_<label>.md`, nothing dropped. Headings and columns may be in Polish (`## Konta testowe`, `## Konta bankowe`, …; the format lists them).
 
-For production and staging the Password column says **where the password is kept**, never the password: the document is committed. Local stacks may list their obviously fake seeded logins (`admin / admin123`).
+For production and staging the Password column says **where the password is kept**, never the password: the document is committed. Local stacks may list their obviously fake seeded logins (`admin123`).
 
 An entry that cannot be read is left out and named in a toast.
 
