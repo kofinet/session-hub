@@ -93,7 +93,7 @@ What **the current session** did, every item clickable; nothing from other sessi
 - **Pull requests**: the PR of the session's branch and the PRs it created or changed, with checks and review state.
 - **Processes**: what the session started (background tasks, servers, containers, start scripts) with their URLs; ● green when the port is listening.
 - **URLs**: local addresses the session gave that belong to none of its processes.
-- **Accounts**: first, for each `http` check and each running `docker` check with an `accounts` document, a row `→ prod (4) · open its tab` that opens the environment's tab (below); the number counts the logins its document lists (read again on every refresh, from the checkout the session works in, its worktree too); a login two documents both list counts once; `▸ staging (no document)` when the document cannot be read. Then the logins the session gave that no such document lists (`user / password`, tables, e-mail logins, addresses on test domains); `user1..3@example.com` is listed as three accounts, each with what the session said about it. No accounts at all, no section.
+- **Accounts**: the logins the session gave that no environment's test data document lists (those are in the environment's own tab, below) (`user / password`, tables, e-mail logins, addresses on test domains); `user1..3@example.com` is listed as three accounts, each with what the session said about it. No accounts at all, no section.
 - **Artifacts**: claude.ai artifacts and docs, documents it wrote, design links.
 
 It opens by itself the first time it finds something (from 144 terminal columns up); `r` refreshes it. The status line shows `hub: 2 proc · 1 PR · 3 accounts`.
@@ -181,7 +181,13 @@ docs/test_data_staging.md
 docs/test_data_local.md
 ```
 
-Each environment with a document gets **its own tab** next to the session hub (`🧪 prod test data`), opened by itself once per session: production and staging when the band first reads them, a `docker` stack once it runs. The tab shows the document whole, read again on every refresh from the checkout the session works in (a branch's own changes to it show): what comes before the first `## ` heading always, then each `## ` section folded, the one about accounts (`Accounts`, `Logins`, `Konta`) unfolded until you fold it. `/session-hub:modinstal` proposes this layout:
+Each environment with a document gets **its own tab** next to the session hub (`🧪 prod test data`), opened by itself once per session: production and staging when the band first reads them, a `docker` stack once it runs. The document is read again on every refresh from the checkout the session works in, so a branch's own changes to it show. The tab shows, in order:
+
+- **Links**: the environment's addresses from its check (`urls`, a stack's `url`) and the document itself;
+- **Accounts**: one table of every login the document names (`Login · Password · Notes`, the notes from the rest of its row), whatever shape the document gives them in; the document's own tables of accounts are not repeated;
+- every other `## ` section of the document, in its order, under its heading: URLs, test cards, bank accounts, companies, notes (tables aligned).
+
+`/session-hub:modinstal` proposes this layout:
 
 ```markdown
 # Test data: <environment>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="620" height="400" viewBox="0 0 620 400" role="img" aria-label="An environment's tab in session-hub: the staging test data document, its Accounts section unfolded with two logins and where their passwords are kept, the URLs, Payments and Notes sections folded">
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="470" viewBox="0 0 660 470" role="img" aria-label="An environment's tab in session-hub: links to the staging environment and its document, a table of its accounts with where their passwords are kept, then its test cards and test bank account in sections">
   <style>
     text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; fill: #cdd6f4; white-space: pre; }
     .dim { fill: #7f849c; }
@@ -6,28 +6,36 @@
     .bold { font-weight: 700; }
     .link { fill: #89b4fa; text-decoration: underline; }
     .user { fill: #94e2d5; }
+    .pass { fill: #f9e2af; }
     .tab { fill: #cdd6f4; font-size: 13px; }
     .tabdim { fill: #7f849c; font-size: 13px; }
   </style>
-  <rect width="620" height="400" rx="10" fill="#1e1e2e"/>
-  <rect x="0.5" y="0.5" width="619" height="399" rx="10" fill="none" stroke="#45475a"/>
+  <rect width="660" height="470" rx="10" fill="#1e1e2e"/>
+  <rect x="0.5" y="0.5" width="659" height="469" rx="10" fill="none" stroke="#45475a"/>
   <rect x="12" y="10" width="196" height="24" rx="4" fill="#313244"/>
   <text x="22" y="27" class="tab">🧪 staging test data</text>
   <text x="222" y="27" class="tabdim">🧪 prod test data</text>
   <text x="370" y="27" class="tabdim">Session hub</text>
 
-  <text x="20" y="64"><tspan class="link">~/src/my-app/docs/test_data_staging.md</tspan></text>
-  <text x="20" y="90" class="bold">Test data: staging</text>
-  <text x="20" y="110" class="dim">Shared by QA. Reset every night at 02:00.</text>
+  <text x="20" y="64" class="head">Links</text>
+  <text x="20" y="84">  <tspan class="link">https://staging.my-app.example/</tspan></text>
+  <text x="20" y="104">  <tspan class="dim">document: </tspan><tspan class="link">~/src/my-app/docs/test_data_staging.md</tspan></text>
+  <text x="20" y="130" class="dim">Shared by QA. Reset every night at 02:00.</text>
 
-  <text x="20" y="142" class="head">▾ Accounts</text>
-  <text x="20" y="164" class="bold">  Role          Login                  Password</text>
-  <text x="20" y="184">  Tenant admin  <tspan class="user">qa@my-app.example</tspan>      <tspan class="dim">(1Password: My-app staging)</tspan></text>
-  <text x="20" y="204">  Customer      <tspan class="user">customer@example.com</tspan>   <tspan class="dim">(1Password: My-app staging)</tspan></text>
-  <text x="20" y="236" class="head">▸ URLs</text>
-  <text x="20" y="262" class="head">▸ Payments</text>
-  <text x="20" y="288" class="head">▸ Notes</text>
+  <text x="20" y="162"><tspan class="head">Accounts</tspan><tspan class="dim"> (3)</tspan></text>
+  <text x="20" y="182" class="bold">  Login                 Password                      Notes</text>
+  <text x="20" y="202">  <tspan class="user">qa@my-app.example</tspan>     <tspan class="pass">(1Password: My-app staging)</tspan>   <tspan class="dim">Tenant admin · /admin</tspan></text>
+  <text x="20" y="222">  <tspan class="user">operator@my-app.local</tspan> <tspan class="pass">(1Password: My-app staging)</tspan>   <tspan class="dim">Operator · /operator</tspan></text>
+  <text x="20" y="242">  <tspan class="user">customer@example.com</tspan>  <tspan class="dim">—</tspan>                             <tspan class="dim">sign up at /register</tspan></text>
 
-  <text x="20" y="330" class="dim">Press a section to fold or unfold it. Production and staging</text>
-  <text x="20" y="350" class="dim">open their tabs by themselves; a local stack once it runs.</text>
+  <text x="20" y="274" class="head">Payments</text>
+  <text x="20" y="294" class="bold">  Card        Number</text>
+  <text x="20" y="314">  OK          4242 4242 4242 4242</text>
+  <text x="20" y="334">  3-D Secure  4000 0025 0000 3155</text>
+
+  <text x="20" y="366" class="head">Bank account (test)</text>
+  <text x="20" y="386">  PL00 1234 5678 0000 0000 0000 0000</text>
+
+  <text x="20" y="418" class="head">Notes</text>
+  <text x="20" y="438">  Sign-in codes arrive in MailHog: http://localhost:8025</text>
 </svg>

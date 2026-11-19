@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { accountsSection, docLines, docSections } from '../hooks/doc'
+import { docLines, docSections, isAccountsTitle, withoutAccountTables } from '../hooks/doc'
 
 test('a document is shown line by line: headings bold, markdown marks gone, runs of blank lines as one', async () => {
   const doc = [
@@ -96,10 +96,32 @@ test('a document splits into its ## sections, the text before the first one kept
   })
 })
 
-test('the accounts section is the one named accounts, logins or konta, else the first', async () => {
-  expect(accountsSection(['URLs', 'Konta testowe', 'Notes'])).toBe(1)
-  expect(accountsSection(['Test accounts', 'Payments'])).toBe(0)
-  expect(accountsSection(['URLs', 'Logins'])).toBe(1)
-  expect(accountsSection(['URLs', 'Payments'])).toBe(0)
-  expect(accountsSection([])).toBe(-1)
+test('the account tables leave the document; every other table and line stays', async () => {
+  const doc = [
+    '# Test data: staging',
+    '',
+    '## Konta',
+    '| Rola | Login | Hasło |',
+    '|---|---|---|',
+    '| Admin | qa@shop.example | (1Password) |',
+    'Hasło resetuje QA.',
+    '',
+    '## Payments',
+    '| Card | Number |',
+    '|---|---|',
+    '| OK | 4242 4242 4242 4242 |',
+  ].join('\n')
+  expect(withoutAccountTables(doc)).toBe(
+    ['# Test data: staging', '', '## Konta', 'Hasło resetuje QA.', '', '## Payments', '| Card | Number |', '|---|---|', '| OK | 4242 4242 4242 4242 |'].join('\n'),
+  )
+})
+
+test('a table of addresses stays, even with a login column', async () => {
+  const doc = ['| URL | Co | Login |', '|---|---|---|', '| `https://shop.localhost` | panel | `/logowanie` |'].join('\n')
+  expect(withoutAccountTables(doc)).toBe(doc)
+})
+
+test('a section about accounts is told by its title', async () => {
+  expect(['Accounts', 'Konta testowe', 'Test logins', 'Payments', 'URLs'].map(isAccountsTitle)).toEqual([true, true, true, false, false])
+  expect(['Konto bankowe testowe (NRB)', 'Bank accounts', 'IBAN'].map(isAccountsTitle)).toEqual([false, false, false])
 })

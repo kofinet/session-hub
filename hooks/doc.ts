@@ -99,8 +99,40 @@ export const docSections = (text: string): { head: DocLine[]; sections: { title:
 
 const ACCOUNT_WORDS = ['account', 'login', 'konta', 'konto', 'loginy']
 
-/** The section unfolded by default: the one about accounts and logins, else the first; -1 when there is none. */
-export const accountsSection = (titles: readonly string[]): number => {
-  const named = titles.findIndex(t => ACCOUNT_WORDS.some(w => t.toLowerCase().includes(w)))
-  return named >= 0 ? named : titles.length > 0 ? 0 : -1
+/** a bank account is test data, not a login */
+const BANK_WORDS = ['bank', 'nrb', 'iban']
+
+/** `## Accounts`, `## Konta testowe`, `## Test logins`: the section the accounts table stands for. */
+export const isAccountsTitle = (title: string): boolean => {
+  const lower = title.toLowerCase()
+  return ACCOUNT_WORDS.some(w => lower.includes(w)) && !BANK_WORDS.some(w => lower.includes(w))
+}
+
+/** the columns that make a table one of accounts */
+const LOGIN_COLUMNS = new Set(['user', 'username', 'login', 'email', 'e-mail', 'użytkownik', 'uzytkownik', 'konto'])
+/** the columns that make a table one of addresses */
+const ADDRESS_COLUMNS = new Set(['url', 'urls', 'adres', 'address', 'endpoint'])
+
+/**
+ * The document without its tables of accounts (a table whose header names a login column): the environment's tab
+ * shows those accounts in a table of its own, and every other line where the document has it.
+ */
+export const withoutAccountTables = (text: string): string => {
+  const lines = text.split('\n')
+  const kept: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? ''
+    if (!isTableRow(line)) {
+      kept.push(line)
+      continue
+    }
+    const rows: string[] = []
+    while (i < lines.length && isTableRow(lines[i] ?? '')) rows.push(lines[i++] ?? '')
+    i--
+    const header = cellsOf(rows[0] ?? '').map(c => c.toLowerCase())
+    // `| URL | Co | Login |` lists addresses, how to sign in on each: no accounts
+    const isAccounts = header.some(c => LOGIN_COLUMNS.has(c)) && !header.some(c => ADDRESS_COLUMNS.has(c))
+    if (!isAccounts) kept.push(...rows)
+  }
+  return kept.join('\n')
 }

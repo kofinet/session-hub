@@ -8,7 +8,7 @@ import { DEFAULT_LANGUAGE, textsFor } from './i18n'
 // Change a tag when its type's fields change (Snapshot; ProjectStatus or CheckStatus): a value an older version stored
 // outlives a reload. register.tsx writes the snapshot, project.tsx the project; each file spells its own atoms.
 export const SNAPSHOT_SHAPE = 'snapshot-4'
-export const PROJECT_SHAPE = 'project-4'
+export const PROJECT_SHAPE = 'project-5'
 const snapshot = atom({ plugin: 'session-hub', key: 'snapshot' } as const, null, { shape: SNAPSHOT_SHAPE })
 const projectStatus = atom({ plugin: 'session-hub', key: 'project' } as const, null, { shape: PROJECT_SHAPE })
 /** project.tsx writes it from the settings; the pane, the band and the status line speak it */
@@ -17,14 +17,14 @@ const language = atom({ plugin: 'session-hub', key: 'language' } as const, DEFAU
 const MAX_SESSION_ACCOUNTS = 12
 
 /**
- * The accounts the pane lists: each running instance's group, then the session's own (the newest few) that no
- * instance's doc already shows. A login two instances' docs both list is counted once.
+ * The accounts the hub lists: the session's own (the newest few) that no environment's document already shows; the
+ * environments' accounts are in their own tabs. `instances` are the environments with a document.
  */
 export const paneAccounts = (status: ProjectStatus | null, session: readonly Account[]) => {
   const instances = (status?.checks ?? []).flatMap(c => (c.accounts === undefined ? [] : [{ label: c.label, accounts: c.accounts }]))
   const listed = distinctLogins(instances.flatMap(i => (i.accounts.kind === 'listed' ? i.accounts.list : [])))
   const own = sessionOnlyAccounts(session, listed).slice(-MAX_SESSION_ACCOUNTS)
-  return { instances, own, count: listed.length + own.length }
+  return { instances, own, count: own.length }
 }
 
 export const isLive = (p: Process) => p.status === 'running' || (p.status === 'started' && p.urls.some(u => u.isAlive))

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Account, Process, PullRequest, Snapshot, Url, Worktree } from '../types'
 import { extract, fileHref, listeningPorts, localUrls, parseWorktrees, pullRepo, summarizeChecks, taskNotifications } from './extract'
 import type { CheckRun, FoundPr, FoundProcess, FoundUrl, Msg } from './extract'
-import { accountsSection, docSections } from './doc'
+import { docSections, isAccountsTitle, withoutAccountTables } from './doc'
 import { afterTurn, registerProject, startProject } from './project'
 import { run } from './run'
 import { DEFAULT_LANGUAGE, textsFor } from './i18n'
@@ -17,8 +17,6 @@ const isAutoOpened = atom({ plugin: 'session-hub', key: 'isAutoOpened' } as cons
 const projectStatus = atom({ plugin: 'session-hub', key: 'project' } as const, null, { shape: PROJECT_SHAPE })
 /** background tasks' ends the session was notified of outside its messages: task id → status */
 const taskEnds = atom({ plugin: 'session-hub', key: 'taskEnds' } as const, {} as Record<string, string>)
-/** the sections of the environments' tabs the person folded or unfolded: `<label>\u0000<title>` → open */
-const openSections = atom({ plugin: 'session-hub', key: 'openSections' } as const, {} as Record<string, boolean>)
 const language = atom({ plugin: 'session-hub', key: 'language' } as const, DEFAULT_LANGUAGE)
 
 const DEFAULT_BRANCHES = new Set(['main', 'master', 'develop', 'trunk'])
@@ -300,8 +298,7 @@ export const register: Register = on => {
     )
     if (snap === null) return <Text dimColor>{t.collecting}</Text>
 
-    const { instances, own: sessionAccounts, count: accountCount } = paneAccounts(await read($, projectStatus), snap.accounts)
-    const tabs = textsFor(await read($, language)).env
+    const { own: sessionAccounts, count: accountCount } = paneAccounts(await read($, projectStatus), snap.accounts)
 
     return (
       <Box flexDirection="column" gap={1}>
@@ -411,19 +408,9 @@ export const register: Register = on => {
           {snap.urls.map(u => urlLine(u, ''))}
         </Box>
 
-        {instances.length + sessionAccounts.length > 0 && (
+        {sessionAccounts.length > 0 && (
           <Box flexDirection="column">
             {header(t.accounts, accountCount)}
-            {instances.map(i => (
-              <Button key={`accounts:${i.label}`} plain onPress={() => $.ui.open({ id: envPane(i.label), title: tabs.tabTitle(i.label) })}>
-                {'→ '}
-                {i.label}{' '}
-                <Text dimColor>
-                  {i.accounts.kind === 'listed' ? `(${i.accounts.list.length})` : `(${t.noDocument})`} · {tabs.open}
-                </Text>
-              </Button>
-            ))}
-            {instances.length > 0 && sessionAccounts.length > 0 && <Text dimColor>  {t.fromSession}</Text>}
             {sessionAccounts.map(a => accountLine(a, '  '))}
           </Box>
         )}
@@ -450,63 +437,102 @@ export const register: Register = on => {
   })
 }
 
+/** in the accounts table, for a login the document gives no password */
+const PASSWORD_MISSING = '—'
+
 /**
- * An environment's tab: its test data document in `## ` sections, each folded or unfolded by a press; the accounts
- * section is unfolded until the person folds it, the others folded.
+ * An environment's tab: its links (the addresses from the settings, the document), a table of its accounts taken
+ * from the document, then the rest of the document's test data (cards, bank accounts, notes) by its `## ` sections.
  */
 async function renderEnvironment($: EngineInterface, e: Parameters<EngineInterface['ui']['resolve']>[0] & { requestId: string }) {
-  const { Box, Text, Link, Button } = $.ui.resolve(e)
+  const { Box, Text, Link } = $.ui.resolve(e)
   const t = textsFor(await read($, language))
   const status = await read($, projectStatus)
   const check = status?.checks.find(c => envPane(c.label) === e.requestId && c.accounts !== undefined)
-  const label = check?.label ?? ''
   const accounts = check?.accounts
-  if (accounts === undefined) return <Text dimColor>{t.env.notRunning}</Text>
-  const link = (
-    <Text wrap="truncate-start">
-      <Link href={fileHref(accounts.doc)}>{accounts.doc}</Link>
+  if (check === undefined || accounts === undefined) return <Text dimColor>{t.env.notRunning}</Text>
+
+  const heading = (title: string, count?: number) => (
+    <Text bold color="claude">
+      {title}
+      {count !== undefined && <Text dimColor> ({count})</Text>}
     </Text>
+  )
+  const links = (
+    <Box flexDirection="column">
+      {heading(t.env.links)}
+      {(check.urls ?? []).map(url => (
+        <Text>
+          {'  '}
+          <Link href={url}>{url}</Link>
+        </Text>
+      ))}
+      <Text wrap="truncate-start">
+        {'  '}
+        <Text dimColor>{t.env.document}: </Text>
+        <Link href={fileHref(accounts.doc)}>{accounts.doc}</Link>
+      </Text>
+    </Box>
   )
   if (accounts.kind === 'missing') {
     return (
-      <Box flexDirection="column">
-        {link}
+      <Box flexDirection="column" gap={1}>
+        {links}
         <Text dimColor>{t.pane.documentMissing}</Text>
       </Box>
     )
   }
-  const { head, sections } = docSections(accounts.text)
-  const toggled = await read($, openSections)
-  const unfolded = accountsSection(sections.map(s => s.title))
-  const line = (l: { text: string; isBold: boolean }, indent: string) => (
+
+  const list = accounts.list
+  const loginWidth = Math.max(t.env.login.length, ...list.map(a => a.user.length))
+  const passwordWidth = Math.max(t.env.password.length, ...list.map(a => (a.password ?? PASSWORD_MISSING).length))
+  const { head, sections } = docSections(withoutAccountTables(accounts.text))
+  const accountNotes = sections.filter(s => isAccountsTitle(s.title)).flatMap(s => s.lines)
+  const rest = sections.filter(s => !isAccountsTitle(s.title) && s.lines.length > 0)
+  const notes = head.filter(l => !l.isBold && l.text !== '')
+  const line = (l: { text: string; isBold: boolean }) => (
     <Text bold={l.isBold}>
-      {indent}
+      {'  '}
       {l.text}
     </Text>
   )
+
   return (
-    <Box flexDirection="column">
-      {link}
-      {head.map(l => line(l, ''))}
-      {head.length === 0 && sections.length === 0 && <Text dimColor>{t.env.empty}</Text>}
-      {sections.map((section, i) => {
-        const key = `${label}\u0000${section.title}`
-        const isOpenByDefault = i === unfolded
-        const isOpen = toggled[key] ?? isOpenByDefault
-        // from the value at the press, not at the drawing: two quick presses fold back
-        const toggle = () => update($, openSections, m => ({ ...m, [key]: !(m[key] ?? isOpenByDefault) }))
-        return (
-          <Box flexDirection="column">
-            <Button key={`section:${section.title}`} plain onPress={toggle}>
-              <Text bold color="claude">
-                {isOpen ? '▾ ' : '▸ '}
-                {section.title}
-              </Text>
-            </Button>
-            {isOpen && section.lines.map(l => line(l, '  '))}
-          </Box>
-        )
-      })}
+    <Box flexDirection="column" gap={1}>
+      {links}
+      {notes.length > 0 && <Box flexDirection="column">{notes.map(l => <Text dimColor>{l.text}</Text>)}</Box>}
+      <Box flexDirection="column">
+        {heading(t.pane.accounts, list.length)}
+        {list.length === 0 ? (
+          <Text dimColor>  {t.env.noAccounts}</Text>
+        ) : (
+          <Text bold>
+            {'  '}
+            {t.env.login.padEnd(loginWidth)}
+            {'  '}
+            {t.env.password.padEnd(passwordWidth)}
+            {'  '}
+            {t.env.notes}
+          </Text>
+        )}
+        {list.map(a => (
+          <Text wrap="truncate-end">
+            {'  '}
+            <Text color="suggestion">{a.user.padEnd(loginWidth)}</Text>
+            {'  '}
+            <Text color={a.password === undefined ? 'inactive' : 'warning'}>{(a.password ?? PASSWORD_MISSING).padEnd(passwordWidth)}</Text>
+            {'  '}
+            <Text dimColor>{a.note ?? ''}</Text>
+          </Text>
+        ))}
+        {accountNotes.map(line)}
+      </Box>
+      {rest.map(section => (
+        <Box flexDirection="column">
+          {heading(section.title)}
+          {section.lines.map(line)}
+        </Box>
+      ))}
     </Box>
   )
 }

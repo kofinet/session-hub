@@ -200,7 +200,7 @@ async function checkStatuses($: EngineInterface, p: Project, check: Check, got: 
         Promise.all(check.urls.map(url => fetchOk($, url))),
         check.accounts === undefined ? undefined : instanceAccounts($, repoPath(sessionRoot, check.accounts)),
       ])
-      return [{ ...base, state: results.every(Boolean) ? 'ok' : 'failed', ...(accounts !== undefined && { accounts }) }]
+      return [{ ...base, state: results.every(Boolean) ? 'ok' : 'failed', ...(accounts !== undefined && { accounts, urls: check.urls }) }]
     }
     case 'docker': {
       const own = ownContainers(got.containers, check.containerPrefixes)
@@ -209,7 +209,8 @@ async function checkStatuses($: EngineInterface, p: Project, check: Check, got: 
         check.url === undefined || !isRunning ? undefined : curlOk($, check.url),
         check.accounts === undefined || !isRunning ? undefined : instanceAccounts($, repoPath(sessionRoot, check.accounts)),
       ])
-      return [{ ...base, ...dockerFacts(own, urlOk), ...(accounts !== undefined && { accounts }) }]
+      const urls = check.url === undefined ? [] : [check.url]
+      return [{ ...base, ...dockerFacts(own, urlOk), ...(accounts !== undefined && { accounts, urls }) }]
     }
     case 'busy': {
       const count = ownContainers(got.containers, check.containerPrefixes).length

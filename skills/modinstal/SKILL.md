@@ -52,9 +52,9 @@ Then the **test data documents**, one per environment the entry names (`prod`, `
 name (then reuse it). For each:
 
 - it exists: point the check's `accounts` at it;
-- it does not: propose it, filled from what step 2 found, in these `## ` sections (each one is a
-  folded section in the environment's tab; `Accounts` is unfolded at first), leaving out a section with
-  nothing in it:
+- it does not: propose it, filled from what step 2 found, in these `## ` sections (the environment's
+  tab shows the accounts as one table and every other section under its heading), leaving out a
+  section with nothing in it:
 
   ```markdown
   # Test data: <environment>

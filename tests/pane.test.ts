@@ -115,31 +115,21 @@ const PROJECT_STATUS = {
 
 const SESSION_ACCOUNTS = [{ user: 'admin@shop.local' }, { user: 'dev@shop.local', note: 'seeded by this session' }]
 
-test("one Accounts section: each environment's row opens its tab, then the session's own accounts, without the environment's again", async ($, on) => {
-  const opened: string[] = []
+test("the hub lists the session's own accounts; an environment's stay in its tab", async ($, on) => {
   on('state.get', ($, e, next) => {
     if (e.key === 'snapshot')
       return { value: { value: { shape: 'snapshot-4', value: { ...SNAPSHOT, accounts: SESSION_ACCOUNTS } }, version: 1 } } as never
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: PROJECT_STATUS }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: PROJECT_STATUS }, version: 1 } } as never
     return next(e)
   })
-  on('ui.open', ($, e) => {
-    opened.push(`${e.id} ${e.title ?? ''}`)
-    return { value: { id: e.id, isPlaced: true } as never }
-  })
-
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mountPane($, surface)
-    expect(await ui.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Accounts (1)' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '  dev@shop.local (no password)' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '  admin@shop.local (no password)' })).toBeUndefined()
-    expect(await ui.find({ key: 'accounts:dev' })).toBeDefined()
-    expect(await ui.find({ key: 'accounts:staging' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: 'Tenant admin' })).toBeUndefined()
-    await ui.press({ key: 'accounts:dev' })
+    expect(await ui.find({ type: 'Text', text: 'admin@shop.local' })).toBeUndefined()
+    expect(await ui.find({ key: 'accounts:dev' })).toBeUndefined()
     await ui.unmount()
   }
-  expect(opened).toEqual(['session-hub-env-dev 🧪 dev test data', 'session-hub-env-dev 🧪 dev test data'])
 })
 
 test('no Accounts section when neither the session nor a running instance has an account', async ($, on) => {
@@ -202,18 +192,13 @@ const SECTIONED_DOC = [
   'Stripe OK: 4242 4242 4242 4242',
 ].join('\n')
 
-test("an environment whose document is missing keeps its row, and its tab says the document is not there", async ($, on) => {
+test("an environment whose document is missing: its tab links it and says it is not there", async ($, on) => {
   const project = withInstance({ kind: 'missing', doc: 'C:/repo/docs/LOCAL_ACCOUNT.md' })
   on('state.get', ($, e, next) => {
-    if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: SNAPSHOT }, version: 1 } } as never
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
   for (const surface of ['terminal', 'desktop'] as const) {
-    const hub = await mountPane($, surface)
-    expect(await hub.find({ key: 'accounts:dev' })).toBeDefined()
-    expect(await hub.find({ type: 'Text', text: '(no document)' })).toBeDefined()
-    await hub.unmount()
     const tab = await mountTab($, surface, 'session-hub-env-dev')
     if (surface === 'terminal') expect(await tab.find({ type: 'Link', text: 'C:/repo/docs/LOCAL_ACCOUNT.md' })).toBeDefined()
     expect(await tab.find({ type: 'Text', text: 'no such document, or it cannot be read' })).toBeDefined()
@@ -229,18 +214,18 @@ test("the session's password for a login the instance's doc also lists stays in 
   const session = [{ user: 'admin', password: 'NewPass1' }]
   on('state.get', ($, e, next) => {
     if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: { ...SNAPSHOT, accounts: session } }, version: 1 } } as never
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mountPane($, surface)
-    expect(await ui.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Accounts (1)' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '  admin / NewPass1' })).toBeDefined()
     await ui.unmount()
   }
 })
 
-test("the status line counts the accounts the pane lists: the instances' and the session's own", async ($, on) => {
+test("the status line counts the accounts the hub lists: the session's own, not the environments'", async ($, on) => {
   let status: string | undefined
   on('session.messages', () => ({ value: [{ role: 'assistant', text: 'Zaloguj się: admin / NewPass1', toolUses: [] }] as never }))
   on('session.cwd', () => ({ value: 'C:/repo' }))
@@ -252,16 +237,16 @@ test("the status line counts the accounts the pane lists: the instances' and the
     return { value: undefined }
   })
   on('state.get', ($, e, next) => {
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: PROJECT_STATUS }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: PROJECT_STATUS }, version: 1 } } as never
     return next(e)
   })
 
   await $.command.run({ command: 'hub', args: '', origin: { kind: 'user' } } as never)
 
-  expect(status).toBe('hub: 2 accounts')
+  expect(status).toBe('hub: 1 account')
 })
 
-test('a login two running instances list from the same doc is counted once', async ($, on) => {
+test("no Accounts section in the hub when the environments' documents list every account the session gave", async ($, on) => {
   const list = [{ user: 'admin', password: 'admin123' }, { user: 'support', password: 'support1' }]
   const instance = (label: string) => ({
     key: label,
@@ -274,56 +259,57 @@ test('a login two running instances list from the same doc is counted once', asy
   })
   const project = { ...PROJECT_STATUS, checks: [instance('dev'), instance('sim')] }
   on('state.get', ($, e, next) => {
-    if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: SNAPSHOT }, version: 1 } } as never
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'snapshot') return { value: { value: { shape: 'snapshot-4', value: { ...SNAPSHOT, accounts: [list[0]] } }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await mountPane($, surface)
-    expect(await ui.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Accounts (' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'URLs (0)' })).toBeDefined()
     await ui.unmount()
   }
 })
 
-test("an environment tab's section unfolds and folds again on two quick presses", async ($, on) => {
-  const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/test_data_local.md', text: SECTIONED_DOC, list: [] })
-  on('state.get', ($, e, next) => {
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
-    return next(e)
+test("an environment's tab: its links, a table of its accounts, then the rest of its test data by section", async ($, on) => {
+  const project = withInstance({
+    kind: 'listed',
+    doc: 'C:/repo/docs/test_data_local.md',
+    text: SECTIONED_DOC,
+    list: [{ user: 'admin@shop.local', password: 'admin123', note: 'Admin' }],
   })
-  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
-  await Promise.all([tab.press({ key: 'section:Payments' }), tab.press({ key: 'section:Payments' })])
-  expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeUndefined()
-  await tab.press({ key: 'section:Payments' })
-  expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
-  await tab.unmount()
-})
-
-test("an environment's tab: the document in its sections, accounts unfolded and the others folded until pressed", async ($, on) => {
-  const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/test_data_local.md', text: SECTIONED_DOC, list: [] })
+  const withUrls = { ...project, checks: project.checks.map(c => ({ ...c, urls: ['https://shop.localhost/'] })) }
   on('state.get', ($, e, next) => {
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: withUrls }, version: 1 } } as never
     return next(e)
   })
   for (const surface of ['terminal', 'desktop'] as const) {
     const tab = await mountTab($, surface, 'session-hub-env-dev')
+    expect(await tab.find({ type: 'Text', text: 'Links' })).toBeDefined()
+    expect(await tab.find({ type: 'Link', text: 'https://shop.localhost/' })).toBeDefined()
     if (surface === 'terminal') expect(await tab.find({ type: 'Link', text: 'C:/repo/docs/test_data_local.md' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: 'Test data: dev' })).toBeDefined()
     expect(await tab.find({ type: 'Text', text: 'Seeded by npm run db:seed.' })).toBeDefined()
-    expect(await tab.find({ key: 'section:URLs' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: '  Admin  admin@shop.local  admin123' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: '  https://shop.localhost' })).toBeUndefined()
-    expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeUndefined()
-
-    await tab.press({ key: 'section:Payments' })
-    await tab.press({ key: 'section:Accounts' })
+    expect(await tab.find({ type: 'Text', text: 'Accounts (1)' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: `  ${'Login'.padEnd(16)}  Password  Notes` })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '  admin@shop.local  admin123  Admin' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'Admin  admin@shop.local' })).toBeUndefined()
+    expect(await tab.find({ type: 'Text', text: 'URLs' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '  https://shop.localhost' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'Payments' })).toBeDefined()
     expect(await tab.find({ type: 'Text', text: '  Stripe OK: 4242 4242 4242 4242' })).toBeDefined()
-    expect(await tab.find({ type: 'Text', text: '  Admin  admin@shop.local  admin123' })).toBeUndefined()
-
-    await tab.press({ key: 'section:Payments' })
-    await tab.press({ key: 'section:Accounts' })
     await tab.unmount()
   }
+})
+
+test("an account without a password in the document shows a dash in the tab's table", async ($, on) => {
+  const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/test_data_prod.md', text: '', list: [{ user: 'qa@shop.example' }] })
+  on('state.get', ($, e, next) => {
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
+    return next(e)
+  })
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await tab.find({ type: 'Text', text: '  qa@shop.example  —         ' })).toBeDefined()
+  await tab.unmount()
 })
 
 test("the session's own account stays in view after the session repeats the doc's long table", async ($, on) => {
@@ -346,13 +332,13 @@ test("the session's own account stays in view after the session repeats the doc'
     return { value: undefined }
   })
   on('state.get', ($, e, next) => {
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
 
   await $.command.run({ command: 'hub', args: '', origin: { kind: 'user' } } as never)
 
-  expect(status).toBe('hub: 13 accounts')
+  expect(status).toBe('hub: 1 account')
 })
 
 const MAIN_CHECKOUT = 'C:/repo'
@@ -407,30 +393,31 @@ const shopSession = (
   return shown
 }
 
-test("the status line counts a running instance's accounts as soon as the band reads them", async ($, on) => {
+test("the status line leaves a running environment's accounts to its tab", async ($, on) => {
   const shown = shopSession(on, MAIN_CHECKOUT, { [`${MAIN_CHECKOUT}/docs/accounts.md`]: ACCOUNTS_DOC })
   const clock = mock.clock(on)
   await $.session.start({ cwd: MAIN_CHECKOUT, surface: 'terminal', isInteractive: true })
 
   await clock.advance(1_000)
 
-  expect(shown.status).toBe('hub: 2 accounts')
+  expect(shown.status).toBeUndefined()
+  expect(shown.opened).toEqual(['session-hub-env-dev 🧪 dev test data'])
 })
 
-test("an instance's accounts doc is read from the worktree the session works in", async ($, on) => {
+test("an environment's document is read from the worktree the session works in", async ($, on) => {
   shopSession(on, SESSION_WORKTREE, { [`${SESSION_WORKTREE}/docs/accounts.md`]: ACCOUNTS_DOC })
   const clock = mock.clock(on)
   await $.session.start({ cwd: SESSION_WORKTREE, surface: 'terminal', isInteractive: true })
 
   await clock.advance(1_000)
 
-  const ui = await mountPane($, 'terminal')
-  expect(await ui.find({ type: 'Text', text: '(no document)' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '(2)' })).toBeDefined()
-  await ui.unmount()
+  const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
+  expect(await tab.find({ type: 'Text', text: 'no such document' })).toBeUndefined()
+  expect(await tab.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+  await tab.unmount()
 })
 
-test("production and staging get their tabs by themselves, the one with a document opened, and show it whole", async ($, on) => {
+test("production and staging get their tabs by themselves, the one with a document opened, with its links and accounts", async ($, on) => {
   const prod = { type: 'http', label: 'prod', urls: ['https://shop.example/'], accounts: 'docs/test_data_prod.md' }
   const staging = { type: 'http', label: 'staging', urls: ['https://staging.shop.example/'], accounts: 'docs/test_data_staging.md' }
   const shown = shopSession(on, MAIN_CHECKOUT, { [`${MAIN_CHECKOUT}/docs/test_data_prod.md`]: ACCOUNTS_DOC }, [prod, staging])
@@ -442,14 +429,12 @@ test("production and staging get their tabs by themselves, the one with a docume
   await clock.advance(60_000)
 
   expect(shown.opened).toEqual(['session-hub-env-prod 🧪 prod test data'])
-  const hub = await mountPane($, 'terminal')
-  expect(await hub.find({ key: 'accounts:prod' })).toBeDefined()
-  expect(await hub.find({ key: 'accounts:staging' })).toBeDefined()
-  expect(await hub.find({ type: 'Text', text: '(no document)' })).toBeDefined()
-  await hub.unmount()
   const tab = await mountTab($, 'terminal', 'session-hub-env-prod')
+  expect(await tab.find({ type: 'Link', text: 'https://shop.example/' })).toBeDefined()
   expect(await tab.find({ type: 'Link', text: `${MAIN_CHECKOUT}/docs/test_data_prod.md` })).toBeDefined()
-  expect(await tab.find({ type: 'Text', text: 'Admin    admin    admin123' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'Accounts (2)' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: '  admin    admin123  Admin' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: '  support  support1  Support' })).toBeDefined()
   await tab.unmount()
 })
 
@@ -457,7 +442,7 @@ test("an environment's tab shows its document whole, however long", async ($, on
   const text = Array.from({ length: 230 }, (_, i) => `line ${i + 1}`).join('\n')
   const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/accounts.md', text, list: [] })
   on('state.get', ($, e, next) => {
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
   const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
@@ -468,11 +453,11 @@ test("an environment's tab shows its document whole, however long", async ($, on
 test("an empty document says so in its tab", async ($, on) => {
   const project = withInstance({ kind: 'listed', doc: 'C:/repo/docs/accounts.md', text: '\n\n', list: [] })
   on('state.get', ($, e, next) => {
-    if (e.key === 'project') return { value: { value: { shape: 'project-4', value: project }, version: 1 } } as never
+    if (e.key === 'project') return { value: { value: { shape: 'project-5', value: project }, version: 1 } } as never
     return next(e)
   })
   const tab = await mountTab($, 'terminal', 'session-hub-env-dev')
-  expect(await tab.find({ type: 'Text', text: 'the document has nothing to show' })).toBeDefined()
+  expect(await tab.find({ type: 'Text', text: 'the document lists no accounts' })).toBeDefined()
   await tab.unmount()
 })
 

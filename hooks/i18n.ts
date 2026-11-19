@@ -34,15 +34,18 @@ export type Texts = {
     documentMissing: string
     documentEmpty: string
     moreLines: (n: number) => string
-    fromSession: string
     artifacts: string
     refresh: string
   }
   env: {
     tabTitle: (label: string) => string
-    open: string
+    links: string
+    document: string
+    login: string
+    password: string
+    notes: string
+    noAccounts: string
     notRunning: string
-    empty: string
   }
   band: { handsOff: string; local: string }
   statusLine: { processes: (n: number) => string; prs: (n: number) => string; accounts: (n: number) => string }
@@ -89,15 +92,18 @@ const EN: Texts = {
     documentMissing: 'no such document, or it cannot be read',
     documentEmpty: 'the document is empty',
     moreLines: n => `… ${n} more lines in the document`,
-    fromSession: 'from this session:',
     artifacts: 'Artifacts',
     refresh: 'Refresh',
   },
   env: {
     tabTitle: label => `🧪 ${label} test data`,
-    open: 'open its tab',
+    links: 'Links',
+    document: 'document',
+    login: 'Login',
+    password: 'Password',
+    notes: 'Notes',
+    noAccounts: 'the document lists no accounts',
     notRunning: 'the environment is off: no test data now',
-    empty: 'the document has nothing to show',
   },
   band: { handsOff: 'hands off', local: 'local' },
   statusLine: { processes: n => `${n} proc`, prs: n => `${n} PR`, accounts: n => `${n} ${n === 1 ? 'account' : 'accounts'}` },
@@ -154,15 +160,18 @@ const PL: Texts = {
     documentMissing: 'nie ma takiego dokumentu albo nie da się go odczytać',
     documentEmpty: 'dokument jest pusty',
     moreLines: n => `… jeszcze ${n} ${plural(n, 'wiersz', 'wiersze', 'wierszy')} w dokumencie`,
-    fromSession: 'z tej sesji:',
     artifacts: 'Artefakty',
     refresh: 'Odśwież',
   },
   env: {
     tabTitle: label => `🧪 Dane testowe ${label}`,
-    open: 'otwórz zakładkę',
+    links: 'Linki',
+    document: 'dokument',
+    login: 'Login',
+    password: 'Hasło',
+    notes: 'Uwagi',
+    noAccounts: 'dokument nie wymienia kont',
     notRunning: 'środowisko nie działa: teraz brak danych testowych',
-    empty: 'dokument nie ma nic do pokazania',
   },
   band: { handsOff: 'nie ruszać', local: 'lokalne instancje' },
   statusLine: { processes: n => `${n} proc`, prs: n => `${n} PR`, accounts: n => `${n} ${plural(n, 'konto', 'konta', 'kont')}` },

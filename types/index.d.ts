@@ -91,6 +91,8 @@ export type CheckStatus = {
   failing?: string[]
   /** http (an environment such as production or staging), and docker while the instance runs: the accounts its document lists */
   accounts?: InstanceAccounts
+  /** http and docker with a test data document: the environment's addresses, linked in its tab */
+  urls?: string[]
 }
 
 /** An environment's or local instance's accounts, read from the document its check names (`doc`, absolute); `missing` when it could not be read. */
@@ -112,8 +114,6 @@ declare module 'claude-code' {
       project: Shaped<ProjectStatus | null>
       /** background tasks' ends the session was notified of outside its messages: task id → status */
       taskEnds: Record<string, string>
-      /** the environments' tab sections the person folded or unfolded: `<label>\u0000<title>` → open */
-      openSections: Record<string, boolean>
       /** labels of the environments whose tab this session opened by itself */
       openedTabs: string[]
       /** the interface's language, from the settings */

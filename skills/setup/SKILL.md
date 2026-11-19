@@ -42,7 +42,8 @@ Read just enough to decide; do not run builds, tests or containers.
   document of that environment's test accounts and test data (seeded admins, operators, test users,
   how to sign in, test cards), as a path relative to the repository root, one per environment:
   `docs/test_data_prod.md`, `docs/test_data_staging.md`, `docs/test_data_local.md`. Each environment
-  gets its own tab showing its document, one folded section per `## ` heading (`Accounts` unfolded). Look for existing ones first: docs or READMEs
+  gets its own tab: its links, a table of the accounts the document names, then every other `## `
+  section of it. Look for existing ones first: docs or READMEs
   about test accounts, credentials or a cheat sheet (`test_data_*`, `*CREDENTIALS*`, `*ACCOUNTS*`,
   a "test accounts" section); keep the names the repository already uses. One document can serve
   several local stacks. When there is none, propose creating one per environment with that name:

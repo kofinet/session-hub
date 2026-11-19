@@ -33,10 +33,10 @@
   <text x="20" y="366"><tspan class="head">URLs</tspan><tspan class="dim"> (1)</tspan></text>
   <text x="20" y="386"><tspan class="ok">● </tspan><tspan class="link">http://localhost:8025</tspan></text>
 
-  <text x="20" y="422"><tspan class="head">Accounts</tspan><tspan class="dim"> (6)</tspan></text>
-  <text x="20" y="442">→ prod <tspan class="dim">(2) · open its tab</tspan></text>
-  <text x="20" y="462">→ dev <tspan class="dim">(3) · open its tab</tspan></text>
-  <text x="20" y="482" class="dim">  from this session:</text>
-  <text x="20" y="502">  <tspan class="user">customer1@example.com</tspan><tspan class="dim"> (no password)</tspan></text>
+  <text x="20" y="422"><tspan class="head">Accounts</tspan><tspan class="dim"> (2)</tspan></text>
+  <text x="20" y="442">  <tspan class="user">customer1@example.com</tspan><tspan class="dim"> (no password)</tspan></text>
+  <text x="20" y="462" class="dim">    Jane Doe, private customer, owns the demo event</text>
+  <text x="20" y="482">  <tspan class="user">dev@my-app.local</tspan><tspan class="dim"> / </tspan><tspan class="warn">devpass1</tspan></text>
+  <text x="20" y="502" class="dim">    seeded by this session for the checkout test</text>
   <text x="20" y="530"><tspan class="dim">[ </tspan>Refresh<tspan class="dim"> ]</tspan><tspan class="dim"> 14:05:31</tspan></text>
 </svg>
