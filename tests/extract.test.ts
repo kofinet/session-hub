@@ -136,7 +136,7 @@ test('lists only the artifacts the session published, not the ones it listed, re
   ])
   expect(found.artifacts.map(a => [a.label, a.href])).toEqual([
     ['Brand kit', 'https://claude.ai/artifact/new1'],
-    ['Artifact', 'https://claude.ai/artifact/edited1'],
+    ['Artifact edited1', 'https://claude.ai/artifact/edited1'],
     ['report', 'https://claude.ai/artifact/new2'],
   ])
 })

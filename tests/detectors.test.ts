@@ -181,7 +181,7 @@ test('documents the session wrote count as artifacts; code, config and Claude fi
   expect(fileHref('/home/x.md')).toBe('file:///home/x.md')
 })
 
-test('artifacts: both claude.ai link forms, the label from the title, the file or the kind', async () => {
+test('artifacts: both claude.ai link forms, the label from the title, the page, or the kind and id', async () => {
   const found = extract(
     did(
       { tool: 'Artifact', input: {}, text: 'https://claude.ai/code/artifact/abc-123 and https://claude.ai/artifact/XYZ_9' },
@@ -190,10 +190,40 @@ test('artifacts: both claude.ai link forms, the label from the title, the file o
     ),
   )
   expect(found.artifacts.map(a => [a.label, a.href, a.kind])).toEqual([
-    ['Artifact', 'https://claude.ai/code/artifact/abc-123', 'artifact'],
-    ['Artifact', 'https://claude.ai/artifact/XYZ_9', 'artifact'],
-    ['Claude Doc', 'https://claude.ai/artifact/doc1', 'doc'],
+    ['Artifact abc-123', 'https://claude.ai/code/artifact/abc-123', 'artifact'],
+    ['Artifact XYZ_9', 'https://claude.ai/artifact/XYZ_9', 'artifact'],
+    ['Claude Doc doc1', 'https://claude.ai/artifact/doc1', 'doc'],
     ['plan.v2', 'https://claude.ai/artifact/p2', 'artifact'],
+  ])
+})
+
+test('artifact links a command printed or a read returned are not the session\'s artifacts', async () => {
+  const found = extract(
+    did(
+      bash('python read_other_transcript.py', 'publish https://claude.ai/artifact/KTgp1fEhDtBvfUAVAM7c7Y\nlist https://claude.ai/code/artifact/abc-1'),
+      { tool: 'Read', input: { file_path: 'C:/repo/tests/pane.test.ts' }, text: "text: 'https://claude.ai/code/artifact/abc'" },
+      { tool: 'mcp__claude_ai_Claude_Docs__read', input: {}, text: 'Doc https://claude.ai/artifact/doc9' },
+      { tool: 'mcp__claude_ai_Claude_Docs__query', input: {}, text: 'https://claude.ai/artifact/doc8' },
+    ),
+  )
+  expect(found.artifacts).toEqual([])
+})
+
+test('an artifact without a title of its own is named by its earlier title, its page, or its id', async () => {
+  const found = extract(
+    did(
+      { tool: 'Artifact', input: { action: 'publish', type_url: 'https://claude.ai/artifact/type1', title: 'COFFEE.NET' }, text: 'Created https://claude.ai/artifact/RpiKA4PJ' },
+      { tool: 'Artifact', input: { action: 'publish', url: 'https://claude.ai/artifact/RpiKA4PJ', file_path: 'C:/s/ds/project/design-system.json' }, text: 'Updated' },
+      { tool: 'Artifact', input: { action: 'publish', url: 'https://claude.ai/artifact/KTgp1fEhDtBvfUAVAM7c7Y', file_path: 'C:/s/canvas/project/canvas.json' }, text: 'Updated' },
+      { tool: 'Artifact', input: { action: 'publish', file_path: 'C:/s/release-notes.md' }, text: 'Published https://claude.ai/artifact/notes1' },
+      { tool: 'mcp__claude_ai_Claude_Docs__batch', input: {}, text: 'Created https://claude.ai/artifact/Doc12345xyz' },
+    ),
+  )
+  expect(found.artifacts.map(a => [a.label, a.href])).toEqual([
+    ['COFFEE.NET', 'https://claude.ai/artifact/RpiKA4PJ'],
+    ['Artifact KTgp1fEh', 'https://claude.ai/artifact/KTgp1fEhDtBvfUAVAM7c7Y'],
+    ['release-notes', 'https://claude.ai/artifact/notes1'],
+    ['Claude Doc Doc12345', 'https://claude.ai/artifact/Doc12345xyz'],
   ])
 })
 

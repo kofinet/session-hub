@@ -848,6 +848,26 @@ const publishedArtifacts = (input: Readonly<Record<string, unknown>>, mentioned:
   return mentioned.filter(url => url !== input.type_url)
 }
 
+/** Claude Docs calls that make or change a doc; `read`, `query`, `guide` only look. */
+const DOC_WRITES = ['__batch', '__create', '__update']
+
+/**
+ * The claude.ai artifacts and docs a tool call made or changed: an `Artifact` publish, or a Claude Docs write.
+ * Links any other tool printed (a command, a file read, a listing) are someone else's or only mentioned.
+ */
+const madeArtifacts = (tool: string, input: Readonly<Record<string, unknown>>, out: string): string[] => {
+  if (tool === 'Artifact') return publishedArtifacts(input, claudeUrls(out))
+  if (tool.includes('Claude_Docs') && DOC_WRITES.some(w => tool.endsWith(w))) return claudeUrls(out)
+  return []
+}
+
+const PAGE_EXTENSIONS = ['.html', '.htm', '.md']
+
+const isPage = (path: string): boolean => PAGE_EXTENSIONS.some(ext => path.toLowerCase().endsWith(ext))
+
+/** `https://claude.ai/artifact/KTgp1fEhDtBv…` → `KTgp1fEh`: enough to tell artifacts apart. */
+const artifactId = (url: string): string => url.slice(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 9)
+
 /**
  * What this session did: the processes it started, the addresses and logins it gave,
  * the PRs it made or changed, the worktrees it created or entered, and what it produced.
@@ -863,6 +883,8 @@ export const extract = (main: readonly Msg[], agents: readonly Msg[] = []): Foun
   const prs = new Map<string, FoundPr>()
   const worktreePaths = new Set<string>()
   const artifacts = new Map<string, ArtifactItem>()
+  /** artifacts that got a name of their own (a title or a page), not just their id */
+  const namedArtifacts = new Set<string>()
   const publishedFiles = new Set<string>()
 
   const addPrUrls = (text: string) => {
@@ -967,21 +989,19 @@ export const extract = (main: readonly Msg[], agents: readonly Msg[] = []): Foun
         if (use.tool === 'Write' && typeof use.input.file_path === 'string') addFile(use.input.file_path)
       }
 
-      const mentioned = claudeUrls(out)
-      const artifactUrls = use.tool === 'Artifact' ? publishedArtifacts(use.input, mentioned) : mentioned
-      if (artifactUrls.length > 0 && !isAgent) {
-        const isDoc = use.tool.includes('Claude_Docs')
+      const artifactUrls = isAgent ? [] : madeArtifacts(use.tool, use.input, out)
+      if (artifactUrls.length > 0) {
+        const isDoc = use.tool !== 'Artifact'
         const filePath = typeof use.input.file_path === 'string' ? use.input.file_path : undefined
         if (filePath !== undefined) publishedFiles.add(fileHref(filePath))
         const title = typeof use.input.title === 'string' ? use.input.title : undefined
-        const label = title ?? (filePath ? withoutExtension(basename(filePath)) : isDoc ? 'Claude Doc' : 'Artifact')
+        // a page names its artifact; a typed artifact's data file (`canvas.json`) does not
+        const name = title ?? (filePath !== undefined && isPage(filePath) ? withoutExtension(basename(filePath)) : undefined)
         for (const url of new Set(artifactUrls)) {
           const known = artifacts.get(url)
-          artifacts.set(url, {
-            label: known && known.label !== 'Artifact' && known.label !== 'Claude Doc' ? known.label : label,
-            href: url,
-            kind: isDoc ? 'doc' : 'artifact',
-          })
+          const label = (known !== undefined && namedArtifacts.has(url) ? known.label : name) ?? `${isDoc ? 'Claude Doc' : 'Artifact'} ${artifactId(url)}`
+          if (name !== undefined) namedArtifacts.add(url)
+          artifacts.set(url, { label, href: url, kind: isDoc ? 'doc' : 'artifact' })
         }
       }
     }
